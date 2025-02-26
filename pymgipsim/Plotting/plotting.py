@@ -12,9 +12,9 @@ Model States
 #######################################################################################################################
 """
 
-def plot_subject_response(loaded_model, scenario:scenario, patientidx):
+def plot_subject_response(loaded_model, scenario:scenario, patientidx, faults_label=None):
     mpl.rcParams["font.size"] = 12
-    fig = plt.figure(figsize = (8, 5))
+    fig = plt.figure(figsize = (12, 8))
     cho_color = [0.259, 0.125, 0.329]
     insulin_color = [0, 0.639, 0.224]
     snack_color = [0.7, 0.7, 0.7]
@@ -30,8 +30,10 @@ def plot_subject_response(loaded_model, scenario:scenario, patientidx):
 
     match loaded_model.name:
         case Models.T1DM.ExtHovorka.Model.name:
-            glucose = UnitConversion.glucose.concentration_mmolL_to_mgdL(loaded_model.states.as_array[patientidx, loaded_model.glucose_state, :] / loaded_model.parameters.VG[patientidx])
-                
+            # Original BG that input in the patient model
+            # glucose = UnitConversion.glucose.concentration_mmolL_to_mgdL(loaded_model.states.as_array[patientidx, loaded_model.glucose_state, :] / loaded_model.parameters.VG[patientidx])
+            # Manipulated BG that input in the controller
+            glucose = UnitConversion.glucose.concentration_mmolL_to_mgdL(loaded_model.states.as_array[patientidx, loaded_model.output_state, :])
         case Models.T1DM.IVP.Model.name:
             glucose = loaded_model.states.as_array[patientidx, loaded_model.glucose_state, :]
 
@@ -103,6 +105,33 @@ def plot_subject_response(loaded_model, scenario:scenario, patientidx):
     except:
         pass
 
+    # plot faulty area
+    try:
+        in_fault_region = False
+        start_minute = 0
+        # Use a flag to ensure the legend label is only added once
+        label_added = False
+        for i, label_val in enumerate(faults_label):
+            is_fault = (label_val != 'None')
+
+            # Check for the beginning of a new faulty region
+            if is_fault and not in_fault_region:
+                in_fault_region = True
+                start_minute = i
+
+            # Check for the end of a faulty region
+            elif not is_fault and in_fault_region:
+                in_fault_region = False
+                end_minute = i  # The region ends at the current minute
+
+                # Plot the extracted start and end points
+                current_label = 'Faulty region' if not label_added else None
+                plt.axvspan(start_minute / 60.0, end_minute / 60.0,
+                           color='gray', alpha=0.15, label=current_label)
+                label_added = True
+    except:
+        pass
+
     plt.plot(time_axis, glucose, color=glucose_color, label="Blood glucose ["+glucose_unit+"]")
     plt.grid()
     # plt.ylim((0, 400))
@@ -112,7 +141,7 @@ def plot_subject_response(loaded_model, scenario:scenario, patientidx):
     if np.max(glucose) < 250.0:
         plt.ylim([0.0, 250.0])
     else:
-        plt.ylim([0.0, np.max(glucose)])
+        plt.ylim([0.0, np.nanmax(glucose)])
     try:
         plt.title(scenario.patient.model.name+" "+scenario.patient.files[patientidx].replace(".json",""))
     except:

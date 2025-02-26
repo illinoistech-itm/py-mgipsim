@@ -404,9 +404,9 @@ class VanillaMPC:
         G = UnitConversion.glucose.concentration_mmolL_to_mgdL(measurements[patient_idx])
         uFastCarbs, uSlowCarbs, uHR, uInsulin, energy_expenditure = inputs[patient_idx]
 
-
         sum_meals = np.sum(uFastCarbs[sample-self.T+1:sample:sample+1]+uSlowCarbs[sample-self.T+1:sample:sample+1])/self.T
         energy_expenditure_mean = 1+np.sum(energy_expenditure[sample-self.T+1:sample:sample+1])/self.T
+
 
         # meal is in gram
         # exercise is in MET
@@ -416,9 +416,14 @@ class VanillaMPC:
 
         self.update_linear_model()
         basal, bolus = self.mpc_execute()
+
+        # inject insulin related faults
+
         self.pw_data_object.push_basal(basal)
         self.pw_data_object.push_bolus(bolus)
         # insulin = MPC_Controller_01.get_insulin_input_mU_min(basal, bolus)
         insulin_rate = UnitConversion.insulin.Uhr_to_mUmin(basal)+UnitConversion.insulin.U_to_mU(bolus)/self.T
+        # basal_rate = UnitConversion.insulin.Uhr_to_mUmin(basal)
+        # bolus_rate = UnitConversion.insulin.U_to_mU(bolus)/self.T
         inputs[patient_idx,3,sample:sample+self.T] = insulin_rate
         return

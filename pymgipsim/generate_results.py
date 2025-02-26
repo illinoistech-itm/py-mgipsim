@@ -41,7 +41,7 @@ def get_metrics(model):
 		metrics.append(analyzer.analyze_glucose_profile(pd.DataFrame({'t':pd.to_datetime(model.time.as_datetime).tz_localize(None),'glucose':glucose})))
 	return metrics
 
-def generate_results_main(scenario_instance, args, results_folder_path):
+def generate_results_main(scenario_instance, args, results_folder_path, faults_array=None):
     
 	if not args['no_print']:
 		print(f">>>>> Generating Model Results")
@@ -65,8 +65,7 @@ def generate_results_main(scenario_instance, args, results_folder_path):
 
 
 		case 'SingleScaleSolver':
-
-			cohort.model_solver.do_simulation(no_progress_bar = args['no_progress_bar'])
+			_ , faults_label = cohort.model_solver.do_simulation(no_progress_bar = args['no_progress_bar'], faults_array=faults_array)
 
 			model = cohort.model_solver.model
 
@@ -86,9 +85,9 @@ def generate_results_main(scenario_instance, args, results_folder_path):
 				if not args['no_print']:
 					print(">>>>> Formatting and Saving Results")
 				with pandas.ExcelWriter(os.path.join(results_folder_path, "model_state_results.xlsx")) as writer:
-					save_to_xls(state_results, state_names, state_units, writer, args["no_progress_bar"])
+					save_to_xls(state_results, state_names, state_units, writer, args["no_progress_bar"], faults_label)
 
-	return cohort, None#get_metrics(cohort.singlescale_model)
+	return cohort, faults_label #None#get_metrics(cohort.singlescale_model)
 
 if __name__ == '__main__':
 

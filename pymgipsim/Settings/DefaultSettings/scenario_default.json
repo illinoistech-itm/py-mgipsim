@@ -1,6 +1,6 @@
 {
     "settings": {
-        "save_directory": "C:\\mentes22\\mentes\\IIT\\projects\\py-mgipsim\\SimulationResults",
+        "save_directory": "C:\\Users\\yuchen017\\PycharmProjects\\py-mgipsim\\SimulationResults",
         "start_time": 0,
         "end_time": 1440,
         "random_seed": 402,
