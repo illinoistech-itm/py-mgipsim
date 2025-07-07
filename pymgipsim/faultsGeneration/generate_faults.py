@@ -33,6 +33,8 @@ def generate_faults(faults_file, simulation_days, simulation_start_time):
                            'Description': Explain the attack or malfunction simulated here.
         args.number_of_days (int): The total number of days for the simulation timeline.
         simulation_start_time: align simulation time with real-world time
+        sampling_time (int): The sampling interval in minutes. The final output will be
+                     sampled at this rate. Defaults to 1.
     Returns:
             - np.ndarray: The fault timeline array of shape (1, simulation_days * 1440).
     """
@@ -65,7 +67,15 @@ def generate_faults(faults_file, simulation_days, simulation_start_time):
         # "Paint" the fault ID onto the timeline for its duration
         fault_input[start_minute:end_minute] = fault_id
 
+    # # Sampling: downsample every `sampling_time` minutes using max value in window
+    # sampled_length = simulation_len // sampling_time
+    # fault_input = np.array([
+    #     np.max(fault_input[i * sampling_time:(i + 1) * sampling_time])
+    #     for i in range(sampled_length)
+    # ])
+
     return fault_input
+
 
 
 if __name__ == '__main__':

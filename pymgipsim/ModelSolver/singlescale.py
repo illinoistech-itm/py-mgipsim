@@ -108,26 +108,22 @@ class SingleScaleSolver(SolverBase):
             faults_engine = FaultsInjection()
             faults_label = ['None'] * state_results.shape[-1]
             first_repeat = True
+
             # Get fault id type
             fault_label_dict = {name: id for id, name in faults_id_dict.items()}
             cgm_faults_ids = [fault_label_dict.get(name) for name in faults_engine.bg_faults]
             insulin_faults_ids = [fault_label_dict.get(name) for name in faults_engine.insulin_faults]
+
+            # Sampling: downsample every `sampling_time` minutes using max value in window
+            sampled_length = len(faults_array) // self.model.sampling_time
+            faults_array = np.array([
+                np.max(faults_array[i * self.model.sampling_time:(i + 1) * self.model.sampling_time])
+                for i in range(sampled_length)
+            ])
             print('Fault Injection Initialized')
 
             for sample in tqdm(range(1, inputs.shape[2]), disable = no_progress_bar):
-                # Inject false state: meal, bolus
-                # if (sample in range(600, 600)) & (self.scenario_instance.controller.name == 'HCL0'):
-                #     # input state: uFastCarbs, uSlowCarbs, uHR, uInsulin, energy_expenditure
-                #     # # uSlowCarbs
-                #     # false_carb, f_label = faults_engine_i.false_meal(inputs[:, 1, :sample+1])
-                #     # faults_label[sample] = f_label
-                #     # inputs[:, 1, sample] = false_carb.copy()
-                #     # uInsulin
-                #     false_bolus, f_label = faults_engine_i.false_bolus()
-                #     faults_label[sample] = f_label
-                #     inputs[:, 3, sample] = false_bolus.copy()
-
-                # inject CGM readings' faults before input into controller.
+                # inject cgm faults before controller.
                 if faults_array[sample - 1] in cgm_faults_ids:
                     f_label = faults_id_dict[faults_array[sample-1]]
 
@@ -163,46 +159,6 @@ class SingleScaleSolver(SolverBase):
                     self.controller.run(measurements=state_results[:, self.model.output_state, sample - 1],
                                         inputs=inputs, states=state_results, sample=sample-1)
 
-                # if (sample in range(1000, 1200)) & (self.scenario_instance.controller.name == 'HCL0'):
-                #     silicon_state_results[:, :, sample-1] = self.ode_solver(
-                #         f=self.model.model,
-                #         time=float(sample-1),
-                #         h=float(self.model.sampling_time),
-                #         initial=silicon_state_results[:, :, sample - 2].copy(),
-                #         parameters=parameters,
-                #         inputs=current_input  # inputs[:, :, sample - 1]
-                #     )
-                #     # repeat episode
-                #     fault = 'repeated_episode'
-                #     if (fault == 'repeated_episode') & first_repeat:
-                #         first_repeat = False
-                #         false_episode, f_label = faults_engine_bg.repeated_episode(
-                #             bg=state_results[:, self.model.output_state, :sample], carb_past=inputs[:, 1, :sample], copy_len=200)
-                #
-                #     false_last_bg = false_episode[:, sample-1].copy()
-                #     # Manipulate CGM readings
-                #     # true_last_bg = copy.copy(state_results[:, self.model.output_state, sample-1])
-                #     # false_last_bg, f_label = faults_engine_bg.zero_readings(bg=true_last_bg)
-                #     faults_label[sample-1] = f_label
-                #     silicon_state_results[:, self.model.output_state, sample-1] = false_last_bg.copy()
-                #     # # Keep real readings for the patient model and fake readings for the controller and display
-                #     self.controller.run(measurements=false_last_bg, inputs=inputs,
-                #                         states=silicon_state_results, sample=sample - 1)
-                # else:
-                #     silicon_state_results[:, :, sample - 1] = copy.copy(state_results[:, :, sample - 1])
-                #     self.controller.run(measurements=state_results[:, self.model.output_state, sample - 1],
-                #                         inputs=inputs, states=state_results, sample=sample-1)
-
-                # self.controller.run(measurements=state_results[:, self.model.output_state, sample - 1],
-                #                     inputs=inputs, states=state_results, sample=sample - 1)
-
-
-                # if (sample in range(600, 600)) & (self.scenario_instance.controller.name == 'HCL0'):
-                #     # uInsulin
-                #     false_bolus, f_label = faults_engine_i.false_bolus()
-                #     faults_label[sample-1] = f_label
-                #     inputs[:, 3, sample-1] = false_bolus
-
                 # position 3 is the total insulin
                 current_input = copy.copy(inputs[:, :, sample - 1])
 
@@ -224,14 +180,6 @@ class SingleScaleSolver(SolverBase):
                     if f_label not in ['unknown_stop', 'unknown_under', 'false_meal']:
                         inputs[:, 3, sample - 1] = f_basal
 
-                # if (sample in range(720, 1200)) & (self.scenario_instance.controller.name == 'HCL0'):
-                #     f_basal, f_label = faults_engine_i.negative_bias_basal(basal=current_input[:, 3])
-                #     # position 3 is the total insulin in the current minute
-                #     faults_label[sample-1] = f_label
-                #     current_input[:, 3] = f_basal
-                #     if f_label not in ['unknown_stop', 'unknown_under']:
-                #         # when unknown malfunction happen, the present controller activity not accord with injected dosage
-                #         inputs[:, 3, sample - 1] = f_basal
 
                 state_results[:, :, sample] = self.ode_solver(
                     f=self.model.model,

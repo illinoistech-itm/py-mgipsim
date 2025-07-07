@@ -112,8 +112,8 @@ def plot_subject_response(loaded_model, scenario:scenario, patientidx, faults_la
         # Use a flag to ensure the legend label is only added once
         label_added = False
         for i, label_val in enumerate(faults_label):
-            is_fault = (label_val != 'None')
-
+            # is_fault = (label_val != 'None')
+            is_fault = (label_val != 0)
             # Check for the beginning of a new faulty region
             if is_fault and not in_fault_region:
                 in_fault_region = True
