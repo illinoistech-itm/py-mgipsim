@@ -4,33 +4,63 @@ This branch incorporated the faults injection module into the closed-loop simula
 
 ## Input
 
-run manual_script.py
+    run manual_script.py
 
 Except for scenarios and parameters needed by the original closed-loop testbed, the following parameters need to be given in `manual_script.py`
 
-- **Faults Specification**
+Faults can be specified in the following two ways:
 
-A CSV file describes when and what faults need to be injected, with columns 
+1. Generate faults from specification file
 
-['Start_Time', 'Period', 'Data Label', 'Description']  
+Function: 
+generate_faults.generate_faults_from_file(faults_file, simulation_days, simulation_start_time)
 
-'Start_Time': Fault start time. Should be a datetime object.   (e.g., `2023-01-20 12:35`)              
+Parameters:
 
-'Period': Length of fault injection. Count in minutes.    (e.g., `1`)                   
+    "faults_file":
+    
+        A CSV file describes when and what faults need to be injected, with columns 
+        
+        ['Start_Time', 'Period', 'Data Label', 'Description']  
+        
+        'Start_Time': Fault start time. Should be a datetime object.   (e.g., `2023-01-20 12:35`)              
+        
+        'Period': Length of fault injection. Count in minutes.    (e.g., `1`)                   
+        
+        'Data Label': Fault category.  (e.g.,  `negative_spike`)                 
+    
+        'Description': Explain the attack or malfunction simulated here. (
+        `"Isolated Unphysiological Spike: Single point negative spike during exercise."`)
+    
+        A sample file was put under:
+        
+        pymgipsim/faultsGeneration/faults_specification.csv
+    
+    simulation_days: The total number of days for the simulation timeline.
+    simulation_start_time: Indicate the beginning date and time of simulation, e.g., 'pd.Timestamp('2023-01-01 00:00:00')`
 
-'Data Label': Fault category.  (e.g.,  `negative_spike`)                 
+2. Generate faults randomly
 
-'Description': Explain the attack or malfunction simulated here. (
-`"Isolated Unphysiological Spike: Single point negative spike during exercise."`)
+Function: 
 
-A sample file was put under:
+generate_faults.generate_random_faults(simulation_days, intensity=0.1, random_state=100)
 
-pymgipsim/faultsGeneration/faults_specification.csv
+Parameters:
 
-- **Simulation start time**
+    simulation_days (int): Total length of the simulation.
+    intensity (float): Ratio of total timeline that should be affected by faults.
+    random_state (int): Seed for reproducibility.
 
-Indicate the beginning date and time of simulation, e.g., 
-`pd.Timestamp('2023-01-01 00:00:00')`
+Constraints
+
+- Every fault type is guaranteed to appear at least once.
+
+- Fault periods do not overlap.
+
+- Single-point faults (IDs: 8, 9, 15, 16) affect only one time point per occurrence.
+
+- repeated_episode must be injected with a minimum 2-hour duration.
+
 
 ## Output
 

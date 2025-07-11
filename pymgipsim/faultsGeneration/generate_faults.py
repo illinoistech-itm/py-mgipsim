@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import random
 
 faults_label_dict = {
     'max_basal': 1, 'min_basal': 2, 'positive_basal': 3, 'negative_basal': 4, 'unknown_stop': 5,
@@ -17,7 +18,7 @@ faults_id_dict = {
 
 
 
-def generate_faults(faults_file, simulation_days, simulation_start_time):
+def generate_faults_from_file(faults_file, simulation_days, simulation_start_time):
     """
     Generates a 1D NumPy array representing a timeline of faults.
 
@@ -78,6 +79,91 @@ def generate_faults(faults_file, simulation_days, simulation_start_time):
 
 
 
+def generate_random_faults(simulation_days, intensity=0.1, random_state=100):
+    """
+    Randomly inject non-overlapping faults into a timeline of given duration.
+
+    Args:
+        simulation_days (int): Number of simulation days (1 day = 1440 minutes).
+        intensity (float): Ratio of total simulation time that should be fault-injected.
+        random_state (int): Seed for reproducibility.
+    Returns:
+        np.ndarray: Array of shape (simulation_days * 1440,), with fault IDs injected.
+    """
+    np.random.seed(random_state)
+    random.seed(random_state)
+
+    simulation_len = simulation_days * 24 * 60
+    fault_input = np.zeros(simulation_len, dtype=int)
+    used_indices = set()
+
+    # Special-case fault types
+    one_point_faults = {8, 9, 15, 16}
+    repeated_fault = 17
+
+    # Estimate total number of fault minutes based on intensity
+    total_fault_minutes = int(simulation_len * intensity)
+
+    def is_valid_range(start, duration):
+        return all(i not in used_indices for i in range(start, start + duration)) and start + duration <= simulation_len
+
+    def mark_range(start, duration, fault_id):
+        for i in range(start, start + duration):
+            fault_input[i] = fault_id
+            used_indices.add(i)
+
+    for fault_id in faults_id_dict:
+        injected = False
+        tries = 0
+        while not injected and tries < 1000:
+            tries += 1
+            if fault_id in one_point_faults:
+                start = random.randint(0, simulation_len - 1)
+                if is_valid_range(start, 1):
+                    mark_range(start, 1, fault_id)
+                    total_fault_minutes -= 1
+                    injected = True
+            elif fault_id == repeated_fault:
+                duration = random.randint(120, 240)  # 2–4 hours
+                start = random.randint(0, simulation_len - duration)
+                if is_valid_range(start, duration):
+                    mark_range(start, duration, fault_id)
+                    total_fault_minutes -= duration
+                    injected = True
+            else:
+                duration = random.randint(15, 120)  # 15 min – 2 hours
+                start = random.randint(0, simulation_len - duration)
+                if is_valid_range(start, duration):
+                    mark_range(start, duration, fault_id)
+                    total_fault_minutes -= duration
+                    injected = True
+
+    # If there's remaining quota for faults, randomly inject more from any fault
+    all_fault_ids = list(faults_id_dict.keys())
+    while total_fault_minutes > 0:
+        fault_id = random.choice(all_fault_ids)
+        if fault_id in one_point_faults:
+            duration = 1
+        elif fault_id == repeated_fault:
+            duration = random.randint(120, 300)
+        else:
+            duration = random.randint(15, 120)
+
+        if duration > total_fault_minutes:
+            break
+
+        start = random.randint(0, simulation_len - duration)
+        if is_valid_range(start, duration):
+            mark_range(start, duration, fault_id)
+            total_fault_minutes -= duration
+
+    return fault_input
+
+
+
+
+
+
 if __name__ == '__main__':
     simulation_start_time = pd.Timestamp('2023-01-01 00:00:00')
     print("Simulation start time: ", simulation_start_time)
@@ -87,7 +173,7 @@ if __name__ == '__main__':
     print("-" * 35)
 
     faults_spec_file = r"pymgipsim/faultsGeneration/faults_specification.csv"
-    faults_input = generate_faults(faults_spec_file, 30, simulation_start_time)
+    faults_input = generate_faults_from_file(faults_spec_file, 30, simulation_start_time)
 
 
 

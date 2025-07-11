@@ -68,7 +68,9 @@ if __name__ == '__main__':
 
         settings_file = generate_inputs_main(scenario_instance = settings_file, args = args, results_folder_path=results_folder_path)
 
-        faults_input = generate_faults.generate_faults(faults_file=faults_spec, simulation_days=args.number_of_days, simulation_start_time=simulation_start_time)  # , sampling_time=args.sampling_time
+        # faults_input = generate_faults.generate_faults_from_file(faults_file=faults_spec, simulation_days=args.number_of_days, simulation_start_time=simulation_start_time)  # , sampling_time=args.sampling_time
+
+        faults_input = generate_faults.generate_random_faults(simulation_days=args.number_of_days, intensity=0.2, random_state=args.random_seed)
 
     model,faults_label = generate_results_main(scenario_instance = settings_file, args = vars(args), results_folder_path = results_folder_path, faults_array=faults_input)
 
