@@ -137,11 +137,12 @@ def main(input_file=None,
 
 
 if __name__ == "__main__":
-    base_path = './SimulationData/morning_runner_openloop_14day'
-    output_path = os.path.join(base_path, "QA")
+    day = 14
+    base_path = f"./SimulationData/morning_runner_openloop_{day}day"
+    output_path = "./QA_pairs"
     os.makedirs(output_path, exist_ok=True)
 
     patient_id = "morning_runner_1"
     input_file = os.path.join(base_path, f"{patient_id}_simulation_data.jsonl")
-    output_file = os.path.join(output_path, f"{patient_id}_questions_answers.jsonl")
+    output_file = os.path.join(output_path, f"{patient_id}_questions_answers_{day}day.jsonl")
     main(input_file, output_file, include_patient_data=True)

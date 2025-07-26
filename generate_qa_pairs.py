@@ -585,7 +585,13 @@ def main(input_file=None,
     process_jsonl_file(input_file, output_file, include_patient_data)
 
 if __name__ == "__main__":
-    os.makedirs(f'./SimulationData/Morning_runner_1day_OpenLoop/QA/', exist_ok=True)
-    input_file="./SimulationData/Morning_runner_1day_OpenLoop/morning_runner_1_simulation_data.jsonl"
-    output_file = "./SimulationData/Morning_runner_1day_OpenLoop/QA/morning_runner_1_questions_answers.jsonl"
+
+    day = 1
+    base_path = f"./SimulationData/morning_runner_openloop_{day}day"
+    output_path = "./QA_pairs"
+    os.makedirs(output_path, exist_ok=True)
+
+    patient_id = "morning_runner_1"
+    input_file = os.path.join(base_path, f"{patient_id}_simulation_data.jsonl")
+    output_file = os.path.join(output_path, f"{patient_id}_questions_answers_{day}day.jsonl")
     main(input_file, output_file, include_patient_data=True)
