@@ -4,21 +4,6 @@ import json
 import os
 from datetime import timedelta
 
-def preprocess_df(df):
-    df["BG"] = df["IG (mmol/L)"] * 18
-
-    sampling_minutes = 5 
-    minutes_per_day = 1440
-    rows_per_day = minutes_per_day // sampling_minutes  # 288
-
-    df['day'] = df.index // rows_per_day
-    df['minute_of_day'] = (df.index % rows_per_day) * sampling_minutes
-    df['hour'] = df['minute_of_day'] // 60
-
-    df["start_time"] = df.index * sampling_minutes
-
-    return df
-
 def resample_input_field(data, field_name, sampling_minutes=5): 
     field = data["inputs"][field_name]
     magnitudes = field["magnitude"]
@@ -174,7 +159,7 @@ def preprocess_data(simulation_path, bg_path, output_path, num_people, scenario_
         # Blood glucose
         try:
             df = pd.read_excel(bg_path, sheet_name=sheet_name)
-            df = preprocess_df(df)
+            df["BG"] = df["IG (mmol/L)"] * 18
             print(f"Loaded data for {sheet_name}: {df.shape}")
 
             simulation_data["bg_mgdl"] = df["BG"].tolist()
@@ -191,7 +176,7 @@ def preprocess_data(simulation_path, bg_path, output_path, num_people, scenario_
 
 
 if __name__ == "__main__":
-    FOLDER_NAME = "morning_runner_openloop_14day"
+    FOLDER_NAME = "morning_runner_openloop_1day"
     BASE_PATH = os.path.join("SimulationResults", FOLDER_NAME)
     SIMULATION_PATH = os.path.join(BASE_PATH, "simulation_settings.json")
     BG_PATH = os.path.join(BASE_PATH, "model_state_results.xlsx")
