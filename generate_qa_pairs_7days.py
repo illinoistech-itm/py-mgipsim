@@ -88,8 +88,7 @@ def generate_questions_and_answers(patient_data):
 
         # Insulin events for this day
         day_insulin_events = [
-            event for event in insulin_events
-            if event["week"] == 1 and event["day"] == day  
+            event for event in insulin_events if event["day"] == day  
         ]
         total_insulin = sum(event["dosage"] for event in day_insulin_events)
 
@@ -666,7 +665,7 @@ def main(input_file=None,
 
 
 if __name__ == "__main__":
-    base_path = './SimulationData/Morning_runner_7day_OpenLoop'
+    base_path = './SimulationData/morning_runner_openloop_7day'
     output_path = os.path.join(base_path, "QA")
     os.makedirs(output_path, exist_ok=True)
 
