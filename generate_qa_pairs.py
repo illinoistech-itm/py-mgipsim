@@ -987,3 +987,4 @@ if __name__ == "__main__":
     input_file = os.path.join(base_path, f"{patient_id}_simulation_data.jsonl")
     output_file = os.path.join(output_path, f"{patient_id}_questions_answers_{controller}.jsonl")
     main(input_file, output_file, include_patient_data=True)
+    
