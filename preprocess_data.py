@@ -176,7 +176,7 @@ def preprocess_data(simulation_path, bg_path, output_path, num_people, scenario_
 
 
 if __name__ == "__main__":
-    FOLDER_NAME = "morning_runner_openloop_1day"
+    FOLDER_NAME = "morning_runner_openloop_insulin"
     BASE_PATH = os.path.join("SimulationResults", FOLDER_NAME)
     SIMULATION_PATH = os.path.join(BASE_PATH, "simulation_settings.json")
     BG_PATH = os.path.join(BASE_PATH, "model_state_results.xlsx")
