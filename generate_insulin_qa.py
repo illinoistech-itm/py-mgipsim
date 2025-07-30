@@ -108,12 +108,12 @@ def generate_questions_and_answers(patient_data):
 
     questions_and_answers.append({
         "question": f"What was the patient's total daily insulin dose on {day_name}?",
-        "answer": f"{daily_bg[day_key]['total_insulin']:.2f} units",
+        "answer": f"{daily_bg[day_key]['total_insulin']:.1f}",
         "answer_generation_rule": f"Sum all basal and bolus insulin amounts recorded throughout {day_name}.",
-        "answer_instruction": f"Return the total insulin dose on {day_name}, rounded to two decimal places, followed by 'units'.",
+        "answer_instruction": f"Return the total insulin dose on {day_name}, rounded to one decimal places.",
         "answer_type": "float",
         "metric": "MAE",
-        "example_answer": "34.00 units"
+        "example_answer": "34.0"
     })
 
     random_day = random.randint(1, 30)
@@ -157,7 +157,7 @@ def generate_questions_and_answers(patient_data):
             "Return 'Yes' if the average of insulin use on weekends is higher than the average insulin use on weekdays in this week; "
             "otherwise, return 'no'."
         ),
-        "answer_type": "Yes or No",
+        "answer_type": "categorical",
         "metric": "Accuracy",
         "example_answer": "Yes"
     })
@@ -231,7 +231,7 @@ if __name__ == "__main__":
     output_path = "./QA_pairs"
     os.makedirs(output_path, exist_ok=True)
 
-    patient_id = "morning_runner_1"
+    patient_id = "morning_runner_0"
     input_file = os.path.join(base_path, f"{patient_id}_simulation_data.jsonl")
     output_file = os.path.join(output_path, f"{patient_id}_questions_answers_{controller}_insulin.jsonl")
     main(input_file, output_file, include_patient_data=True)
