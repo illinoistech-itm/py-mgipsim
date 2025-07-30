@@ -37,6 +37,7 @@ def generate_questions_and_answers(patient_data):
     basal_events = [event for event in insulin_events if event["insulin_type"] == "basal_insulin"]
 
     # Insulin events for each day
+
     for day in range(1, num_days + 1):
         start_idx = (day - 1) * samples_per_day
         end_idx = min(day * samples_per_day, len(bg_values))
@@ -70,13 +71,13 @@ def generate_questions_and_answers(patient_data):
 
     # descriptive
     questions_and_answers.append({
-        "question": "What was the patient's total daily insulin dose?",
+        "question_text": "What was the patient's total insulin dose?",
         "answer": float(round(total_insulin, 2)),
         "answer_generation_rule": "Sum all insulin amounts from insulin events.",
         "answer_instruction": "Return the sum of all insulin doses units across the day, rounded to two decimal places.",
         "answer_type": "float",
         "metric": "MAE",
-        "example_answer": 34.00
+        "example_answer": 634.00
     })
 
     if largest_bolus_time_minutes is not None:
@@ -89,23 +90,6 @@ def generate_questions_and_answers(patient_data):
             "metric": "MAE",
             "example_answer": 465
         })
-
-    if len(basal_events) > 1:
-        questions_and_answers.append({
-            "question_text": "How did basal rates change throughout the day on day x?",
-            "answer": {
-                "num_adjustments": int(len(basal_events)),
-                "avg_dosage": float(round(np.mean([e["dosage"] for e in basal_events]), 2))
-            },
-            "answer_generation_rule": "Analyze insulin events below threshold (assumed to be basal) for frequency and amount.",
-            "answer_instruction": "Return a dictionary with the number of basal rate adjustments and the average dosage per adjustment rounded to four decimal places, using keys: 'num_adjustments' and 'avg_dosage'.",
-            "answer_type": "dict",
-            "metric": "{'num_adjustments': 'MAE', 'avg_dosage': 'MAE'}",
-            "example_answer": {
-                "num_adjustments": 18,
-                "avg_dosage": 0.02
-            }
-        })
     
     # memory/temporal
     random_day = random.randint(1, min(30, num_days))
@@ -113,7 +97,7 @@ def generate_questions_and_answers(patient_data):
     day_name = f"day {random_day}"
 
     questions_and_answers.append({
-        "question": f"What was the patient's total daily insulin dose on {day_name}?",
+        "question_text": f"What was the patient's total daily insulin dose on {day_name}?",
         "answer": float(daily_bg[day_key]['total_insulin']),
         "answer_generation_rule": f"Sum all basal and bolus insulin amounts recorded throughout {day_name}.",
         "answer_instruction": f"Return the total insulin dose on {day_name}, rounded to two decimal places.",
@@ -128,10 +112,10 @@ def generate_questions_and_answers(patient_data):
 
     if daily_bg[day_key]['largest_bolus_time_minutes'] is not None:
         questions_and_answers.append({
-            "question": f"When did the patient receive their largest insulin bolus on {day_name}?",
+            "question_text": f"When did the patient receive their largest insulin bolus on {day_name}?",
             "answer": int(daily_bg[day_key]['largest_bolus_time_minutes']),  
             "answer_generation_rule": f"Find the insulin bolus event with the highest insulin amount on {day_name} and return its time.",
-            "answer_instruction": f"Return the time of the largest bolus on {day_name} as minutes from start of monitoring period.",
+            "answer_instruction": f"Return the time of the largest bolus on {day_name} as minutes.",
             "answer_type": "int",
             "metric": "MAE",
             "example_answer": 465
@@ -160,7 +144,7 @@ def generate_questions_and_answers(patient_data):
         avg_weekend_insulin = round(weekend_insulin / weekend_count, 2)
 
         questions_and_answers.append({
-            "question": "Does the patient use more insulin on weekends in the first week?",
+            "question_text": "Does the patient use more insulin on weekends in the first week?",
             "answer": "Yes" if avg_weekend_insulin > avg_weekday_insulin else "No",
             "answer_generation_rule": (
                 "Calculate the average insulin doses for weekend (day 6 and day 7) of the first week. "
@@ -241,7 +225,7 @@ if __name__ == "__main__":
     day = 30
     num_patients = 2
     controller = "openloop"
-    scenario_name = "light_eater_cycling"
+    scenario_name = "morning_runner"
     base_path = f"./SimulationData/{scenario_name}_{controller}_insulin"
     output_path = "./QA_pairs"
     os.makedirs(output_path, exist_ok=True)
