@@ -559,7 +559,7 @@ def generate_questions_and_answers(patient_data):
     })
 
     questions_and_answers.append({
-        "question_text": "Are my overnight glucose trends more stable on weekdays or weekend for the first week?",
+        "question_text": "Are my glucose trends more stable on weekdays or weekend for the first week?",
         "answer": higher_weekdays_weekends,
         "answer_generation_rule": "Compare the glucose coefficient of variation during overnight hours (10pm-6am) on weekdays versus weekends.",
         "answer_instruction": "Select one of the following options based on which period has more stable overnight glucose: 'weekdays', 'weekend', or 'equal in both'.",
@@ -649,7 +649,7 @@ def generate_questions_and_answers(patient_data):
     for day in range(1, num_days + 1):
         day_key = f"day{day}"
         dinner = meal_responses.get(day_key, {}).get("dinner", None)
-        if dinner and dinner.get("carbs", 0) >= 100:
+        if dinner and dinner.get("carbs", 0) >= 80:
             spike = dinner.get("spike", 0)
             heavy_dinner_days.append((day, spike))
 
