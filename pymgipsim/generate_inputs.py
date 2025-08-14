@@ -23,9 +23,10 @@ import argparse, json, pprint
 from dataclasses import asdict
 from pymgipsim.Controllers.parser import controller_args_to_scenario
 import os
+from pymgipsim.Utilities.random_scenarios import randomize_events
 
 
-def generate_inputs_main(scenario_instance: scenario, args: argparse.Namespace, results_folder_path: str) -> argparse.Namespace:
+def generate_inputs_main(scenario_instance: scenario, args: argparse.Namespace, results_folder_path: str, random_scenario=None) -> argparse.Namespace:
 
     if not args.no_print:
         print(f">>>>> Generating Input Signals")
@@ -51,6 +52,15 @@ def generate_inputs_main(scenario_instance: scenario, args: argparse.Namespace, 
 
     scenario_instance.inputs = inputs()
     scenario_instance.inputs.meal_carb, scenario_instance.inputs.snack_carb = generate_carb_events(scenario_instance, args)
+    # Introduce randomness before generate bolus
+    if random_scenario:
+        meal_target = [t for t in random_scenario['target'] if
+                       t in ['meal_carb', 'meal_start_time', 'snack_carb', 'snack_start_time']]
+        if any(meal_target):
+            scenario_instance.inputs = randomize_events(scenario_instance.inputs, target=meal_target,
+                                                        random_way=random_scenario['method'],
+                                                        random_state=args.random_seed,
+                                                        intensity=random_scenario['intensity'])
 
     match scenario_instance.patient.model.name:
         case Models.T1DM.IVP.Model.name:
@@ -63,6 +73,17 @@ def generate_inputs_main(scenario_instance: scenario, args: argparse.Namespace, 
             scenario_instance.inputs.basal_insulin = generate_basal_insulin(scenario_instance, args)
             scenario_instance.inputs.running_speed, scenario_instance.inputs.running_incline,\
             scenario_instance.inputs.cycling_power = generate_activities(scenario_instance, args)
+            # Introduce randomness before generate heart rate
+            if random_scenario:
+                exercise_target = [t for t in random_scenario['target'] if t in
+                               ['cycling_power', 'cycling_start_time', 'cycling_duration',
+                                'running_speed', 'running_start_time', 'running_duration']]
+                if any(exercise_target):
+                    scenario_instance.inputs = randomize_events(scenario_instance.inputs, target=exercise_target,
+                                                                random_way=random_scenario['method'],
+                                                                random_state=args.random_seed,
+                                                                intensity=random_scenario['intensity'])
+
             scenario_instance.inputs.heart_rate, scenario_instance.inputs.METACSM = generate_heart_rate(scenario_instance, args)
             scenario_instance.inputs.energy_expenditure = generate_energy_expenditure(scenario_instance, args)
 

@@ -41,7 +41,7 @@ if __name__ == '__main__':
     args.cycling_power      = [90.0]
 
     args.plot_patient = 0 # Plots patient glucose, intakes, heartrate
-    args.breakfast_carb_range = [80, 120]
+    args.breakfast_carb_range = [60, 100]
     args.am_snack_carb_range = [10, 20]
     args.lunch_carb_range = [80, 120]
     args.pm_snack_carb_range = [10, 20]
@@ -60,13 +60,29 @@ if __name__ == '__main__':
     faults_spec = 'pymgipsim/faultsGeneration/faults_specification.csv'
     simulation_start_time = pd.Timestamp('2023-01-01 00:00:00')
 
+    # Or random_scenario = None
+    # All target: meal_carb, meal_start_time, snack_carb, snack_start_time
+    #             cycling_power, cycling_start_time, cycling_duration
+    #             running_speed, running_start_time, running_duration
+    # All method: heavy: Increase 10-40% of magnitude or duration
+    #             light: Decrease 10-40% of magnitude or duration
+    #             early: 1-2 hour before original start_time
+    #             delayed: 1-2 hour after original start_time
+    #             skipped: Set 0 of magnitude
+    # Random seed is same as args.random_seed
+    random_scenario = {
+        'target': ['meal_carb', 'meal_start_time', 'running_speed', 'running_start_time'],
+        'method': ['heavy', 'delayed', 'skipped'],
+        'intensity': 0.1
+        }
+
     if not args.scenario_name:
 
         settings_file = generate_simulation_settings_main(scenario_instance=settings_file, args=args, results_folder_path=results_folder_path)
 
         settings_file = generate_virtual_subjects_main(scenario_instance=settings_file, args=args, results_folder_path=results_folder_path)
 
-        settings_file = generate_inputs_main(scenario_instance = settings_file, args = args, results_folder_path=results_folder_path)
+        settings_file = generate_inputs_main(scenario_instance = settings_file, args = args, results_folder_path=results_folder_path, random_scenario=random_scenario)
 
         # faults_input = generate_faults.generate_faults_from_file(faults_file=faults_spec, simulation_days=args.number_of_days, simulation_start_time=simulation_start_time)  # , sampling_time=args.sampling_time
 
