@@ -127,8 +127,12 @@ def extract_exercise_events_combined(data, i):
     events.sort(key=lambda x: x["time"])
     return events
 
+def extract_insulin_from_csv(csv_path):
+    df = pd.read_csv(csv_path)
+    insulin_values = df.iloc[:,0].tolist()
+    return {"magnitude": insulin_values,}
 
-def preprocess_data(simulation_path, bg_path, output_path, num_people, scenario_name):
+def preprocess_data(simulation_path, bg_path, insulin_csv_path, output_path, num_people, scenario_name):
     with open(simulation_path, "r") as f:
         data = json.load(f)
 
@@ -153,8 +157,12 @@ def preprocess_data(simulation_path, bg_path, output_path, num_people, scenario_
         if exercise_events:
             simulation_data["exercise_events"] = exercise_events
 
-        # Heart rate as list
-        #simulation_data["heart_rate"] = data["inputs"]["heart_rate"]["magnitude"][i]
+        # insulin mUmin
+        if os.path.exists(insulin_csv_path):
+            simulation_data["insulin_mUmin"] = extract_insulin_from_csv(insulin_csv_path)
+        else:
+            print(f"Warning: {scenario_name}_{i} has no insulin_input.csv")
+            simulation_data["insulin_mUmin"] = []
 
         # Blood glucose
         try:
@@ -176,18 +184,21 @@ def preprocess_data(simulation_path, bg_path, output_path, num_people, scenario_
 
 
 if __name__ == "__main__":
-    FOLDER_NAME = "morning_runner_openloop_insulin"
-    BASE_PATH = os.path.join("SimulationResults", FOLDER_NAME)
-    SIMULATION_PATH = os.path.join(BASE_PATH, "simulation_settings.json")
-    BG_PATH = os.path.join(BASE_PATH, "model_state_results.xlsx")
-    OUTPUT_PATH = os.path.join("SimulationData", FOLDER_NAME)
-    NUM_PEOPLE = 2
+    for FOLDER_NAME in ["light_eater_cycling_openloop_insulin", "light_eater_cycling_hcl0"]:
+        BASE_PATH = os.path.join("SimulationResults", FOLDER_NAME)
+        SIMULATION_PATH = os.path.join(BASE_PATH, "simulation_settings.json")
+        BG_PATH = os.path.join(BASE_PATH, "model_state_results.xlsx")
+        INSULIN_PATH = os.path.join(BASE_PATH, "insulin_input.csv")
+        OUTPUT_PATH = os.path.join("SimulationData", FOLDER_NAME)
+        NUM_PEOPLE = 2
+        
 
-    preprocess_data(
-        simulation_path=SIMULATION_PATH,
-        bg_path=BG_PATH,
-        output_path=OUTPUT_PATH,
-        num_people=NUM_PEOPLE,
-        scenario_name="morning_runner"
-    )
+        preprocess_data(
+            simulation_path=SIMULATION_PATH,
+            bg_path=BG_PATH,
+            insulin_csv_path=INSULIN_PATH,
+            output_path=OUTPUT_PATH,
+            num_people=NUM_PEOPLE,
+            scenario_name="light_eater_cycling"
+        )
 

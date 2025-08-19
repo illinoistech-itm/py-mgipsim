@@ -75,9 +75,9 @@ if __name__ == '__main__':
     args.lunch_carb_range = [60, 90]
     args.dinner_carb_range = [60, 90]
     args.running_speed = 0.0
-    args.cycling_start_time = [17, 19]
-    args.cycling_duration = [20, 90]
-    args.cycling_power = [75, 200] # Turn off cycling
+    args.cycling_start_time = [960, 1020] # 16-17. snack_pm(15-16) dinner(18-20)
+    args.cycling_duration = [20, 60]
+    args.cycling_power = [75, 200] 
     
     '''
     ######Erratic Schedule – Skips Lunch######
@@ -87,7 +87,7 @@ if __name__ == '__main__':
     ''' 
 
     args.random_seed = 100 
-    args.to_excel = True
+    args.to_excel = True # Store BG values
   
     activity_args_to_scenario(settings_file, args)
 
