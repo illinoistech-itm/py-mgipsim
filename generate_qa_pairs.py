@@ -62,7 +62,8 @@ def generate_questions_and_answers(patient_data):
             in_hyper = False
     
     # Glucose fluctuations
-    glucose_rates = [bg_values[i] - bg_values[i-1] for i in range(1, len(bg_values))]
+
+    glucose_rates = [(bg_values[i] - bg_values[i-1]) / 5 for i in range(1, len(bg_values))]
     rapid_fluctuations = [abs(rate) > 2 for rate in glucose_rates]
     has_rapid_fluctuations = any(rapid_fluctuations)
 
@@ -331,7 +332,7 @@ def generate_questions_and_answers(patient_data):
         "answer_generation_rule": "Find the maximum value in the blood glucose array.",
         "answer_instruction": "Identify the highest blood glucose value and report it as a float rounded to one decimal place",
         "answer_type": "float",
-        "metric": "MAE",
+        "metric": "MAE", 
         "example_answer": 130.0
     })
 
@@ -368,8 +369,8 @@ def generate_questions_and_answers(patient_data):
     questions_and_answers.append({
         "question_text": "How many hours did the patient spend above the target range (> 180 mg/dL)?",
         "answer": round(time_above_range_hours, 1),
-        "answer_generation_rule": "Count minutes where glucose values are above 180 mg/dL, then convert to hours.",
-        "answer_instruction": "Report the total hours spent with glucose above 180 mg/dL, rounded to one decimal place",
+        "answer_generation_rule": "Count minutes where glucose values are above 180 mg/dL (do not include 180), then convert to hours.",
+        "answer_instruction": "Report the total hours spent with glucose above 180 mg/dL (do not include 180), rounded to one decimal place",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 5.5
@@ -378,8 +379,8 @@ def generate_questions_and_answers(patient_data):
     questions_and_answers.append({
         "question_text": "How many hours did the patient spend below the target range (< 70 mg/dL)?",
         "answer": round(time_below_range_hours, 1),
-        "answer_generation_rule": "Count minutes where glucose values are below 70 mg/dL, then convert to hours.",
-        "answer_instruction": "Report the total hours spent with glucose below 70 mg/dL, rounded to one decimal place",
+        "answer_generation_rule": "Count minutes where glucose values are below 70 mg/dL (not including 70), then convert to hours.",
+        "answer_instruction": "Report the total hours spent with glucose below 70 mg/dL (not including 70), rounded to one decimal place",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 5.5
@@ -398,8 +399,8 @@ def generate_questions_and_answers(patient_data):
     questions_and_answers.append({
         "question_text": "How many hyperglycemic events (BG > 180 mg/dL) did the patient experience?",
         "answer": hyper_events,
-        "answer_generation_rule": "Count transitions from normal to hyperglycemic state (BG > 180 mg/dL).",
-        "answer_instruction": "Return an integer count of distinct episodes where glucose rose above 180 mg/dL.",
+        "answer_generation_rule": "Count transitions from normal to hyperglycemic state (BG > 180 mg/dL not including 180).",
+        "answer_instruction": "Return an integer count of distinct episodes where glucose rose above 180 mg/dL (not including 180).",
         "answer_type": "int",
         "metric": "MAE",
         "example_answer": 3
@@ -428,8 +429,8 @@ def generate_questions_and_answers(patient_data):
     questions_and_answers.append({
         "question_text": "What's the time-above-range percentage for this patient?",
         "answer": round(time_above_range_percentage, 1),
-        "answer_generation_rule": "Divide time above range (> 180 mg/dL) by total time, multiply by 100.",
-        "answer_instruction": "Return the percentage of time above 180 mg/dL",
+        "answer_generation_rule": "Divide time above range (> 180 mg/dL not including 180) by total time, multiply by 100.",
+        "answer_instruction": "Return the percentage of time above 180 mg/dL (not including 180)",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 38.0
@@ -438,8 +439,8 @@ def generate_questions_and_answers(patient_data):
     questions_and_answers.append({
         "question_text": "What's the time-below-range percentage for this patient?",
         "answer": round(time_below_range_percentage, 1),
-        "answer_generation_rule": "Divide time below range (< 70 mg/dL) by total time, multiply by 100.",
-        "answer_instruction": "Return the percentage of time below 70 mg/dL, rounded to one decimal place.",
+        "answer_generation_rule": "Divide time below range (< 70 mg/dL not including 70) by total time, multiply by 100.",
+        "answer_instruction": "Return the percentage of time below 70 mg/dL (not including 70), rounded to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 40.0
@@ -649,7 +650,7 @@ def generate_questions_and_answers(patient_data):
     for day in range(1, num_days + 1):
         day_key = f"day{day}"
         dinner = meal_responses.get(day_key, {}).get("dinner", None)
-        if dinner and dinner.get("carbs", 0) >= 80:
+        if dinner and dinner.get("carbs", 0) >= 100:
             spike = dinner.get("spike", 0)
             heavy_dinner_days.append((day, spike))
 
@@ -1000,7 +1001,7 @@ def main(input_file=None,
 if __name__ == "__main__":
     num_patients = 2
     controller = "hcl0"
-    scenario_name = "morning_runner"
+    scenario_name = "light_eater_cycling"
     base_path = f"./SimulationData/{scenario_name}_{controller}"
     output_path = "./QA_pairs"
     os.makedirs(output_path, exist_ok=True)

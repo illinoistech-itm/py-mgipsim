@@ -114,8 +114,8 @@ def generate_questions_and_answers(patient_data):
         questions_and_answers.append({
             "question_text": f"When did the patient receive their largest insulin bolus on {day_name}?",
             "answer": int(daily_bg[day_key]['largest_bolus_time_minutes']),  
-            "answer_generation_rule": f"Find the insulin bolus event with the highest insulin amount on {day_name} and return its time.",
-            "answer_instruction": f"Return the time of the largest bolus on {day_name} as minutes.",
+            "answer_generation_rule": f"Find the insulin bolus event with the highest insulin amount on {day_name} and return its timestamp.",
+            "answer_instruction": f"Return the time of the largest bolus on {day_name} as total minutes from the start of the dataset (day 1, 00:00). For example, if the bolus occurs at 13:00 on day 2, return 2220 minutes (1 day × 1440 minutes/day + 13×60).",
             "answer_type": "int",
             "metric": "MAE",
             "example_answer": 465
@@ -225,7 +225,7 @@ if __name__ == "__main__":
     day = 30
     num_patients = 2
     controller = "openloop"
-    scenario_name = "morning_runner"
+    scenario_name = "light_eater_cycling"
     base_path = f"./SimulationData/{scenario_name}_{controller}_insulin"
     output_path = "./QA_pairs"
     os.makedirs(output_path, exist_ok=True)
