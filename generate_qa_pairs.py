@@ -389,8 +389,8 @@ def generate_questions_and_answers(patient_data):
     questions_and_answers.append({
         "question_text": "How many hypoglycemic events (BG < 70 mg/dL) did the patient experience?",
         "answer": hypo_events,
-        "answer_generation_rule": "Count transitions from normal to hypoglycemic state (BG < 70 mg/dL).",
-        "answer_instruction": "Return an integer count of distinct episodes where glucose dropped below 70 mg/dL.",
+        "answer_generation_rule": "Count the total number of blood glucose readings that are below 70 mg/dL (not including 70). Return the count as an integer.",
+        "answer_instruction": "Count the total number of blood glucose readings that are below 70 mg/dL (not including 70). Return the count as an integer.",
         "answer_type": "int",
         "metric": "MAE",
         "example_answer": 3
@@ -399,8 +399,8 @@ def generate_questions_and_answers(patient_data):
     questions_and_answers.append({
         "question_text": "How many hyperglycemic events (BG > 180 mg/dL) did the patient experience?",
         "answer": hyper_events,
-        "answer_generation_rule": "Count transitions from normal to hyperglycemic state (BG > 180 mg/dL not including 180).",
-        "answer_instruction": "Return an integer count of distinct episodes where glucose rose above 180 mg/dL (not including 180).",
+        "answer_generation_rule": "Count the total number of blood glucose readings that are above 180 mg/dL (not including 180). Return the count as an integer.",
+        "answer_instruction": "Count the total number of blood glucose readings that are below 180 mg/dL (not including 180). Return the count as an integer.",
         "answer_type": "int",
         "metric": "MAE",
         "example_answer": 3
