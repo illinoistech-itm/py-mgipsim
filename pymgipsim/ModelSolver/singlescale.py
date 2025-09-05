@@ -191,7 +191,8 @@ class SingleScaleSolver(SolverBase):
                 )
 
             # Pass the CGM data received by the controller
-            state_results[:, self.model.output_state, :] = silicon_state_results[:, self.model.output_state, :].copy()
+            # silicon_state_results[:, self.model.output_state, -1] = [0,0] due to not simulate in the last run
+            state_results[:, self.model.output_state, :-2] = silicon_state_results[:, self.model.output_state, :-2].copy()
 
             self.model.states.as_array = state_results
             self.model.inputs.as_array = inputs
