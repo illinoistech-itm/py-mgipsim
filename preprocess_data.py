@@ -142,7 +142,7 @@ def preprocess_data(simulation_path, bg_path, insulin_csv_path, output_path, num
         sheet_name = f"Patient_{i}"
         simulation_data = {}
 
-        simulation_data["patient_id"] = f"{scenario_name}_{i}"
+        simulation_data["patient_id"] = f"Patient_{i}"
 
         # Carbs
         simulation_data["carb_events"] = extract_carb_events(data, i)
@@ -179,18 +179,18 @@ def preprocess_data(simulation_path, bg_path, insulin_csv_path, output_path, num
 
 
         os.makedirs(output_path, exist_ok=True)
-        with open(os.path.join(output_path, f"{scenario_name}_{i}_simulation_data.jsonl"), "w") as f:
+        with open(os.path.join(output_path, f"Patient_{i}_simulation_data.jsonl"), "w") as f:
             f.write(json.dumps(simulation_data) + "\n")
 
 
 if __name__ == "__main__":
-    for FOLDER_NAME in ["light_eater_cycling_openloop_insulin", "light_eater_cycling_hcl0"]:
+    for FOLDER_NAME in ["cycling"]:
         BASE_PATH = os.path.join("SimulationResults", FOLDER_NAME)
         SIMULATION_PATH = os.path.join(BASE_PATH, "simulation_settings.json")
         BG_PATH = os.path.join(BASE_PATH, "model_state_results.xlsx")
         INSULIN_PATH = os.path.join(BASE_PATH, "insulin_input.csv")
         OUTPUT_PATH = os.path.join("SimulationData", FOLDER_NAME)
-        NUM_PEOPLE = 2
+        NUM_PEOPLE = 20
         
 
         preprocess_data(
@@ -199,6 +199,6 @@ if __name__ == "__main__":
             insulin_csv_path=INSULIN_PATH,
             output_path=OUTPUT_PATH,
             num_people=NUM_PEOPLE,
-            scenario_name="light_eater_cycling"
+            scenario_name=FOLDER_NAME
         )
 

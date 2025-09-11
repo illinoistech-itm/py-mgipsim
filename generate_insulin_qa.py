@@ -74,7 +74,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "What was the patient's total insulin dose?",
         "answer": float(round(total_insulin, 2)),
         "answer_generation_rule": "Sum all insulin amounts from insulin events.",
-        "answer_instruction": "Return the sum of all insulin doses units across the day, rounded to two decimal places.",
+        "answer_instruction": "Return the sum of all insulin (including basal and bolus insulin) doses units across the weeks, rounded to two decimal places.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 634.00
@@ -99,8 +99,8 @@ def generate_questions_and_answers(patient_data):
     questions_and_answers.append({
         "question_text": f"What was the patient's total daily insulin dose on {day_name}?",
         "answer": float(daily_bg[day_key]['total_insulin']),
-        "answer_generation_rule": f"Sum all basal and bolus insulin amounts recorded throughout {day_name}.",
-        "answer_instruction": f"Return the total insulin dose on {day_name}, rounded to two decimal places.",
+        "answer_generation_rule": f"Sum all basal and bolus insulin amounts recorded throughout {day_name}, rounded to 2 decimal places.",
+        "answer_instruction": f"Return the total insulin dose (including basal and bolus insulin) on {day_name}, rounded to two decimal places.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 34.0
@@ -115,7 +115,7 @@ def generate_questions_and_answers(patient_data):
             "question_text": f"When did the patient receive their largest insulin bolus on {day_name}?",
             "answer": int(daily_bg[day_key]['largest_bolus_time_minutes']),  
             "answer_generation_rule": f"Find the insulin bolus event with the highest insulin amount on {day_name} and return its timestamp.",
-            "answer_instruction": f"Return the time of the largest bolus on {day_name} as total minutes from the start of the dataset (day 1, 00:00). For example, if the bolus occurs at 13:00 on day 2, return 2220 minutes (1 day × 1440 minutes/day + 13×60).",
+            "answer_instruction": f"Return the time of the largest bolus on {day_name} as minutes from the start of the dataset (week1 day 1, 00:00).",
             "answer_type": "int",
             "metric": "MAE",
             "example_answer": 465
@@ -191,8 +191,9 @@ def process_jsonl_file(input_file, output_file, include_patient_data=True):
                     qa["question_id"] = f"pm_insulin_{i}"
 
                 if include_patient_data:
-                    results["input_context"] = patient_data
-                
+                    keys_to_include = ['carb_events', 'insulin_events', 'exercise_events', 'bg_mgdl']
+                    results["input_context"] = {k: patient_data.get(k) for k in keys_to_include}
+
                 f_out.write(json.dumps(results) + '\n')
                 processed_count += 1
                 
@@ -223,14 +224,13 @@ def main(input_file=None,
 
 if __name__ == "__main__":
     day = 30
-    num_patients = 2
-    controller = "openloop"
-    scenario_name = "light_eater_cycling"
-    base_path = f"./SimulationData/{scenario_name}_{controller}_insulin"
-    output_path = "./QA_pairs"
+    num_patients = 20
+    scenario_name = "cycling"
+    base_path = f"./SimulationData/{scenario_name}"
+    output_path = f"./QA_pairs/{scenario_name}_insulin"
     os.makedirs(output_path, exist_ok=True)
     for num in range(num_patients):
-        patient_id = f"{scenario_name}_{num}"
+        patient_id = f"Patient_{num}"
         input_file = os.path.join(base_path, f"{patient_id}_simulation_data.jsonl")
-        output_file = os.path.join(output_path, f"{patient_id}_questions_answers_{controller}_insulin.jsonl")
+        output_file = os.path.join(output_path, f"{patient_id}_questions_answers.jsonl")
         main(input_file, output_file, include_patient_data=True)

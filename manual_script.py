@@ -27,9 +27,9 @@ if __name__ == '__main__':
     settings_file = simulation_folder.load_settings_file(args, results_folder_path)
     
     # Programatically define scenario
-    args.controller_name = "HCL0" # Select controller folder in pymgipsim/Controller/...
+    args.controller_name = "OpenLoop" # Select controller folder in pymgipsim/Controller/...
     args.model_name = "T1DM.ExtHovorka" # Select Hovorka model
-    args.patient_names = ["Patient_1", "Patient_3"] # Select Patient in pymgipsim/VirtualPatient/Models/T1DM/ExtHovorka/Patients
+    #args.patient_names = ["Patient_1", "Patient_3"] # Select Patient in pymgipsim/VirtualPatient/Models/T1DM/ExtHovorka/Patients
     args.plot_patient = 0 # Plots patient glucose, intakes, heartrate
     args.sampling_time = 5
 
@@ -71,9 +71,9 @@ if __name__ == '__main__':
     '''
  
     #####Lighter Eater with Cycling Hobby#####
-    args.breakfast_carb_range = [60, 90] 
-    args.lunch_carb_range = [60, 90]
-    args.dinner_carb_range = [60, 90]
+    args.breakfast_carb_range = [50, 90] 
+    args.lunch_carb_range = [50, 90]
+    args.dinner_carb_range = [50, 90]
     args.running_speed = 0.0
     args.cycling_start_time = [960, 1020] # 16-17. snack_pm(15-16) dinner(18-20)
     args.cycling_duration = [20, 60]

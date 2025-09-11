@@ -184,21 +184,21 @@ def generate_questions_and_answers(patient_data):
         if post_meal_window <= 0:
             continue
 
-        post_meal_bg = bg_values[meal_index : meal_index + post_meal_window + 1]
+        post_meal_bg = bg_values[meal_index +1 : meal_index + post_meal_window + 1]
 
         if len(post_meal_bg) > 1:
             peak_index = np.argmax(post_meal_bg)
             peak = post_meal_bg[peak_index]
-            peak_time = meal_time + peak_index * 5  # convert from steps to minutes
+            peak_time = int((meal_time // 5 + peak_index) * 5) # convert from steps to minutes
             peak_time_str = format_time_info(peak_time)
 
             # Time to return to baseline after peak
             time_to_baseline = None
-            if peak_index < len(post_meal_bg) - 1:
-                for i in range(peak_index + 1, len(post_meal_bg)):
-                    if post_meal_bg[i] <= baseline * 1.1:  # Within 10% above baseline
-                        time_to_baseline = (i - peak_index) * 5  # convert to minutes
-                        break
+            for i in range(peak_index + 1, len(post_meal_bg)):
+                if post_meal_bg[i] <= baseline * 1.1:  # within 10% of baseline
+                    time_to_baseline = (i - peak_index) * 5
+                    break
+
 
             # Initial rise rate (first 30 min)
             initial_window_steps = min(30 // 5, len(post_meal_bg) - 1)  # 6 steps
@@ -243,22 +243,19 @@ def generate_questions_and_answers(patient_data):
         start_index = int(start_time // 5)
         end_index = int(end_time // 5)
 
-        # Skip if event is out of range
-        if start_index >= len(bg_values) or end_index >= len(bg_values):
-            continue
 
         # Baseline before exercise
         baseline = bg_values[start_index]
 
         # During exercise
-        during_bg = bg_values[start_index : end_index + 1]
+        during_bg = bg_values[start_index : end_index]
         min_during = np.min(during_bg)
         max_during = np.max(during_bg) 
         mean_during = np.mean(during_bg)
 
-        # Post-exercise window 30 mins
-        post_window_len = min(60 // 5, len(bg_values) - end_index - 1)
-        post_bg = bg_values[end_index : end_index + post_window_len + 1]
+        # Post-exercise window 90 mins
+        post_window_len = min(180 // 5, len(bg_values) - end_index - 1)
+        post_bg = bg_values[end_index + 1: end_index + post_window_len + 1]
         post_peak = np.max(post_bg)
         post_nadir = np.min(post_bg)
         post_mean = np.mean(post_bg)
@@ -270,15 +267,12 @@ def generate_questions_and_answers(patient_data):
 
         # Rate of change (over exercise duration)
         if len(during_bg) > 1:
-            rate_of_change_during = (during_bg[-1] - baseline) / duration
+            rate_of_change = round(((during_bg[-1] - baseline) / duration),1)
         else:
-            rate_of_change_duing = 0
+            rate_of_change = 0
 
-        # Rate of change after exercise
-        initial_post_change = post_bg[post_window_len] - bg_values[end_index]
-        rate_of_change_post = initial_post_change / 60 
 
-        # Time to return to baseline post-exercise
+        # Time to return to baseline post-exercise compared to pre-exercise baseline
         time_to_baseline = None
         for i, val in enumerate(post_bg):
             if abs(val - baseline) <= baseline * 0.1:  # within 10%
@@ -294,13 +288,12 @@ def generate_questions_and_answers(patient_data):
             "min_during": min_during,
             "max_during": max_during,
             "mean_during": mean_during,
-            "rate_of_change_during": rate_of_change_during,
+            "rate_of_change": rate_of_change,
             "post_peak": post_peak,
             "post_nadir": post_nadir,
             "post_mean": post_mean,
             "post_cv": post_cv,
             "max_drop": baseline-post_nadir,
-            "rate_of_change_post": rate_of_change_post,
             "start_time": start_time_str,
             "start_time_minutes": start_time,  # Add timestamp version
             "duration_min": duration,
@@ -400,7 +393,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "How many hyperglycemic events (BG > 180 mg/dL) did the patient experience?",
         "answer": hyper_events,
         "answer_generation_rule": "Count the total number of blood glucose readings that are above 180 mg/dL (not including 180). Return the count as an integer.",
-        "answer_instruction": "Count the total number of blood glucose readings that are below 180 mg/dL (not including 180). Return the count as an integer.",
+        "answer_instruction": "Count the total number of blood glucose readings that are above 180 mg/dL (not including 180). Return the count as an integer.",
         "answer_type": "int",
         "metric": "MAE",
         "example_answer": 3
@@ -461,7 +454,10 @@ def generate_questions_and_answers(patient_data):
     # Basic Statistics questions
     random_day = random.randint(1, 30)
     day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
+    
+    week = (random_day - 1) // 7 + 1
+    day_in_week = (random_day - 1) % 7 + 1
+    day_name = f"week {week}, day {day_in_week}"
 
     questions_and_answers.append({
         "question_text": f"What was the average glucose reading between 2-4pm on {day_name}?",
@@ -521,8 +517,8 @@ def generate_questions_and_answers(patient_data):
     questions_and_answers.append({
         "question_text": "What are the days where glucose are consistently stable?",
         "answer": stable_days,
-        "answer_generation_rule": "Return a list of day indices (1-based) where glucose coefficient of variation is lower than 36%.",
-        "answer_instruction": "Return a list of day numbers (1-based indexing) where the coefficient of variation is below 36%. Format as a Python list, e.g., [1, 3, 5].",
+        "answer_generation_rule": "Return a list of day indices (1-based) where glucose coefficient of variation is lower than 36.",
+        "answer_instruction": "Return a list of day numbers (1-based indexing) where the coefficient of variation is below 36. Format as a Python list, e.g., [1, 3, 5].",
         "answer_type": "list",
         "metric": "F1",
         "example_answer": [1, 3, 15, 27]
@@ -562,8 +558,8 @@ def generate_questions_and_answers(patient_data):
     questions_and_answers.append({
         "question_text": "Are my glucose trends more stable on weekdays or weekend for the first week?",
         "answer": higher_weekdays_weekends,
-        "answer_generation_rule": "Compare the glucose coefficient of variation during overnight hours (10pm-6am) on weekdays versus weekends.",
-        "answer_instruction": "Select one of the following options based on which period has more stable overnight glucose: 'weekdays', 'weekend', or 'equal in both'.",
+        "answer_generation_rule": "Compare the glucose coefficient of variation on weekdays versus weekends.",
+        "answer_instruction": "Select one of the following options based on which period has more stable glucose: 'weekdays', 'weekend', or 'equal in both'.",
         "answer_type": "categorical",
         "metric": "Accuracy", 
         "example_answer": "weekdays"
@@ -573,17 +569,20 @@ def generate_questions_and_answers(patient_data):
     # Meal-related questions
     random_day = random.randint(1, 30)
     day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
+    
+    week = (random_day - 1) // 7 + 1
+    day_in_week = (random_day - 1) % 7 + 1
+    day_name = f"week {week}, day {day_in_week}"
 
     questions_and_answers.append({
         "question_text": f"How did the patient's blood glucose respond to breakfast on {day_name}?",
         "answer": {
-            'Baseline': meal_responses[day_key]['breakfast']['baseline'],
-            'Peak': meal_responses[day_key]['breakfast']['peak'], 
+            'Baseline': round(meal_responses[day_key]['breakfast']['baseline'],1),
+            'Peak': round(meal_responses[day_key]['breakfast']['peak'],1), 
             'Peak_time': meal_responses[day_key]['breakfast']['peak_time_minutes']
         },
         "answer_generation_rule": "Compare baseline glucose at meal time to maximum value in post-meal window (3 hours) on {day_name}.",
-        "answer_instruction": f"Return the baseline, peak glucose value, and the time of the peak in minutes as a dictionary with keys 'Baseline', 'Peak', 'Peak_time' in post-meal window (3 hours) on {day_name}.",
+        "answer_instruction": f"Return a dictionary containing the baseline glucose value (the glucose value immediately before the meal), the peak glucose value, and the time of the peak (in minutes from the start) within the 3-hour post-meal window on {day_name}. Use the keys 'Baseline', 'Peak', and 'Peak_time'. ",
         "answer_type": "dict",
         "metric": "{'Baseline': 'MAE', 'Peak': 'MAE', 'Peak_time': 'MAE'}",
         "example_answer": {'Baseline': 95.0, 'Peak': 160.0, 'Peak_time': 525},
@@ -591,7 +590,10 @@ def generate_questions_and_answers(patient_data):
 
     random_day = random.randint(1, 30)
     day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
+    
+    week = (random_day - 1) // 7 + 1
+    day_in_week = (random_day - 1) % 7 + 1
+    day_name = f"week {week}, day {day_in_week}"
 
     questions_and_answers.append({
         "question_text": f"What was the peak glucose level after lunch on {day_name}?",
@@ -605,13 +607,16 @@ def generate_questions_and_answers(patient_data):
 
     random_day = random.randint(1, 30)
     day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
+    
+    week = (random_day - 1) // 7 + 1
+    day_in_week = (random_day - 1) % 7 + 1
+    day_name = f"week {week}, day {day_in_week}"
 
     questions_and_answers.append({
-        "question_text": f"How long did it take for glucose levels to return to baseline after dinner on day {day_name}?",
+        "question_text": f"How long did it take for glucose levels to return to baseline after dinner on {day_name}?",
         "answer": meal_responses[day_key]['dinner']['time_to_baseline_min'],
         "answer_generation_rule": f"Find first time after peak when glucose returns to within 10% of pre-meal baseline on {day_name}, and calculate how long it took in minutes.",
-        "answer_instruction": f"Return the number of minutes it took for glucose to return to within 10% of pre-meal baseline after dinner on {day_name}.",
+        "answer_instruction": f"On {day_name}, after dinner, find the first time following the post-meal peak within the 3-hour post-meal window when glucose returns to within 10% of the pre-meal baseline (the glucose value immediately before the meal). Report the duration in minutes. If glucose does not return within this range during the 3-hour window, return None.",
         "answer_type": "int",
         "metric": "MAE",
         "example_answer": 90
@@ -619,8 +624,10 @@ def generate_questions_and_answers(patient_data):
 
     random_day = random.randint(1, 30)
     day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
-
+    
+    week = (random_day - 1) // 7 + 1
+    day_in_week = (random_day - 1) % 7 + 1
+    day_name = f"week {week}, day {day_in_week}"
     questions_and_answers.append({
         "question_text": f"Which meal caused the highest glucose spike on {day_name}?",
         "answer": meal_responses[day_key]['max_spike_meal'],
@@ -633,13 +640,16 @@ def generate_questions_and_answers(patient_data):
 
     random_day = random.randint(1, 30)
     day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
+    
+    week = (random_day - 1) // 7 + 1
+    day_in_week = (random_day - 1) % 7 + 1
+    day_name = f"week {week}, day {day_in_week}"
 
     questions_and_answers.append({
         "question_text": f"What was the glucose rise rate after the morning snack on {day_name}?",
         "answer": meal_responses[day_key]['morning_snack']['rise_rate_per_min'],
         "answer_generation_rule": f"Calculate rate of increase from baseline to 30-minute post-meal glucose on {day_name}.",
-        "answer_instruction": f"Return the rate of increase per minute from baseline to 30-minute post-meal glucose after the morning snack on {day_name}, rounded to two decimal places'.",
+        "answer_instruction": f"Return the rate of increase per minute from baseline (immediately before morning snack) to 30-minute post-meal glucose after the morning snack on {day_name}, rounded to two decimal places'.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 1.45
@@ -650,23 +660,26 @@ def generate_questions_and_answers(patient_data):
     for day in range(1, num_days + 1):
         day_key = f"day{day}"
         dinner = meal_responses.get(day_key, {}).get("dinner", None)
-        if dinner and dinner.get("carbs", 0) >= 100:
+        if dinner and dinner.get("carbs", 0) >= 80:
             spike = dinner.get("spike", 0)
             heavy_dinner_days.append((day, spike))
 
     questions_and_answers.append({
         "question_text": "List all days with a carb-heavy dinner and the corresponding glucose spikes.",
         "answer": heavy_dinner_days,
-        "answer_generation_rule": "Find days where the dinner meal has 100 or more carbs and report the glucose spike after dinner as (peak - baseline) in a 3 hour time window.",
-        "answer_instruction": "Find days where the dinner meal has 100 or more carbs and report the glucose spike after dinner as (peak - baseline) in a 3 hour time window, and return as a list of tuples where each tuple contains the day number and the glucose spike value.",
+        "answer_generation_rule": "Find days where the dinner meal has 80 or more carbs and report the glucose spike after dinner as (peak - baseline) in a 3 hour time window.",
+        "answer_instruction": "Find days where the dinner meal has 80 or more carbs. For each such day, calculate the glucose spike within the 3-hour post-dinner window, defined as the difference between the peak glucose level and the baseline value (the glucose measurement immediately before dinner). Return the results as a list of tuples, where each tuple contains the day number (1–30) and the spike value rounded to one decimal place.",
         "answer_type": "list of tuples (int, float)",
         "metric": "F1",
-        "example_answer": [(1, 85.0), (3, 92.5), (7, 105.3)]
+        "example_answer": [(1, 85.0), (12, 92.5), (21, 105.3)]
     })
 
     random_day = random.randint(1, 30)
     day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
+    
+    week = (random_day - 1) // 7 + 1
+    day_in_week = (random_day - 1) % 7 + 1
+    day_name = f"week {week}, day {day_in_week}"
 
     questions_and_answers.append({
         "question_text": f"What was the peak glucose level after lunch on {day_name}?",
@@ -680,27 +693,16 @@ def generate_questions_and_answers(patient_data):
 
     random_day = random.randint(1, 30)
     day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
-
-    questions_and_answers.append({
-        "question_text": f"How long did it take for glucose levels to return to baseline after dinner on {day_name}?",
-        "answer": meal_responses[day_key]['dinner']['time_to_baseline_min'],
-        "answer_generation_rule": f"Find the first time after the peak when glucose returns to within 10% of the pre-meal baseline on {day_name} after dinner.",
-        "answer_instruction": f"Find the first time after the peak when glucose returns to within 10% of the pre-meal baseline on {day_name} after dinner, and return the number of minutes it took for glucose to return to baseline.",
-        "answer_type": "int",
-        "metric": "MAE",
-        "example_answer": 90
-    })
-
-    random_day = random.randint(1, 30)
-    day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
+    
+    week = (random_day - 1) // 7 + 1
+    day_in_week = (random_day - 1) % 7 + 1
+    day_name = f"week {week}, day {day_in_week}"
 
     questions_and_answers.append({
         "question_text": f"Which meal caused the highest glucose spike on {day_name}?",
         "answer": meal_responses[day_key]['max_spike_meal'],
         "answer_generation_rule": f"Compare 'spike' (peak - baseline) values for breakfast, lunch, and dinner in post-meal window (3 hours) on {day_name}. Select the meal with the highest spike.",
-        "answer_instruction": f"Return the meal name with the highest glucose spike (peak - baseline) in post-meal window (3 hours) on {day_name}: 'breakfast', 'lunch', or 'dinner'.",
+        "answer_instruction": f"On {day_name}, identify the meal with the highest glucose spike in the 3-hour post-meal window. The spike is defined as the difference between the peak glucose level and the baseline (the glucose value immediately before the meal). Return the meal name: 'breakfast', 'lunch', or 'dinner'.",
         "answer_type": "categorical",
         "metric": "Accuracy",
         "example_answer": "lunch"
@@ -711,13 +713,16 @@ def generate_questions_and_answers(patient_data):
 
     random_day = random.randint(1, 30)
     day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
+    
+    week = (random_day - 1) // 7 + 1
+    day_in_week = (random_day - 1) % 7 + 1
+    day_name = f"week {week}, day {day_in_week}"
 
     questions_and_answers.append({
         "question_text": f"What was the peak glucose level during exercise on {day_name}?",
         "answer": round(exercise_responses[day_key]['max_during'], 1),
         "answer_generation_rule": f"Find the maximum glucose level during the exercise period on {day_name}.",
-        "answer_instruction": f"Return the highest glucose value during the running session on {day_name}, as a float with one decimal.",
+        "answer_instruction": f"Return the highest glucose value during the exercise session on {day_name}, as a float with one decimal.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 125.5
@@ -725,13 +730,16 @@ def generate_questions_and_answers(patient_data):
 
     random_day = random.randint(1, 30)
     day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
+    
+    week = (random_day - 1) // 7 + 1
+    day_in_week = (random_day - 1) % 7 + 1
+    day_name = f"week {week}, day {day_in_week}"
 
     questions_and_answers.append({
         "question_text": f"What was the lowest glucose level during exercise on {day_name}?",
         "answer": round(exercise_responses[day_key]['min_during'], 1),
         "answer_generation_rule": f"Find the minimum glucose level during the exercise period on {day_name}.",
-        "answer_instruction": f"Return the lowest glucose value during the cycling session on {day_name}, as a float with one decimal.",
+        "answer_instruction": f"Return the lowest glucose value during the exercise on {day_name}, as a float with one decimal.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 78.0
@@ -739,13 +747,16 @@ def generate_questions_and_answers(patient_data):
 
     random_day = random.randint(1, 30)
     day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
+    
+    week = (random_day - 1) // 7 + 1
+    day_in_week = (random_day - 1) % 7 + 1
+    day_name = f"week {week}, day {day_in_week}"
 
     questions_and_answers.append({
         "question_text": f"What was the lowest glucose level after exercise on {day_name}?",
         "answer": round(exercise_responses[day_key]['post_nadir'], 1),
-        "answer_generation_rule": f"Find the minimum glucose value within 60 minutes after exercise ends on {day_name}.",
-        "answer_instruction": f"Return the lowest glucose value within 60 minutes after exercise on {day_name}, as a float with one decimal.",
+        "answer_generation_rule": f"Find the minimum glucose value within 180 minutes after exercise ends on {day_name}.",
+        "answer_instruction": f"Return the lowest glucose value within 180 minutes after exercise on {day_name}, as a float with one decimal.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 85.2
@@ -753,13 +764,16 @@ def generate_questions_and_answers(patient_data):
 
     random_day = random.randint(1, 30)
     day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
+    
+    week = (random_day - 1) // 7 + 1
+    day_in_week = (random_day - 1) % 7 + 1
+    day_name = f"week {week}, day {day_in_week}"
 
     questions_and_answers.append({
         "question_text": f"What was the glucose rate of change after exercise on {day_name}?",
-        "answer": exercise_responses[day_key]['rate_of_change_post'],
+        "answer": exercise_responses[day_key]['rate_of_change'],
         "answer_generation_rule": f"Calculate the rate of glucose change in the first 60 minutes after exercise on {day_name}.",
-        "answer_instruction": f"Return the glucose rate of change after exercise on {day_name}, rounded to two decimal places.",
+        "answer_instruction": f"Return the glucose rate of change following exercise on {day_name}, calculated from the baseline value (immediately before exercise) to the first glucose measurement at or after the exercise end time, rounded to two decimal places.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 0.87
@@ -767,13 +781,16 @@ def generate_questions_and_answers(patient_data):
 
     random_day = random.randint(1, 30)
     day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
+    
+    week = (random_day - 1) // 7 + 1
+    day_in_week = (random_day - 1) % 7 + 1
+    day_name = f"week {week}, day {day_in_week}"
 
     questions_and_answers.append({
         "question_text": f"How long did it take for glucose levels to return to baseline after exercise on {day_name}?",
         "answer": exercise_responses[day_key]['time_to_baseline_min'],
         "answer_generation_rule": f"Find the first time after exercise ends when glucose returns to within 10% of the pre-exercise baseline on {day_name}.",
-        "answer_instruction": f"Find the first time after exercise ends when glucose returns to within 10% of the pre-exercise baseline on {day_name}, and return the number of minutes it took.",
+        "answer_instruction": f"On {day_name}, after exercise ends, find the first time within the 2-hour post-exercise window when glucose returns to within 10% of the pre-exercise baseline (the glucose value immediately before exercise). Report the duration in minutes. If glucose does not return within this range during the 1-hour window, return None.",
         "answer_type": "int",
         "metric": "MAE",
         "example_answer": 75
@@ -781,13 +798,16 @@ def generate_questions_and_answers(patient_data):
 
     random_day = random.randint(1, 30)
     day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
+    
+    week = (random_day - 1) // 7 + 1
+    day_in_week = (random_day - 1) % 7 + 1
+    day_name = f"week {week}, day {day_in_week}"
 
     questions_and_answers.append({
         "question_text": f"What was the patient's average glucose level within 1 hour after reported exercise on {day_name}?",
         "answer": round(exercise_responses[day_key]['post_mean'], 1),
         "answer_generation_rule": f"Compute the average glucose value for the 60 minutes following the end of exercise on {day_name}.",
-        "answer_instruction": f"Return the average glucose level after exercise within 1 hour on {day_name}, as a float with one decimal.",
+        "answer_instruction": f"On {day_name}, calculate the average glucose level within the 1-hour window starting immediately after exercise ends. Return the result as a float rounded to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 112.5
@@ -795,7 +815,10 @@ def generate_questions_and_answers(patient_data):
 
     random_day = random.randint(1, 30)
     day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
+    
+    week = (random_day - 1) // 7 + 1
+    day_in_week = (random_day - 1) % 7 + 1
+    day_name = f"week {week}, day {day_in_week}"
 
     questions_and_answers.append({
         "question_text": f"What was the patient's average glucose level during reported exercise on {day_name}?",
@@ -809,13 +832,16 @@ def generate_questions_and_answers(patient_data):
 
     random_day = random.randint(1, 30)
     day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
+    
+    week = (random_day - 1) // 7 + 1
+    day_in_week = (random_day - 1) % 7 + 1
+    day_name = f"week {week}, day {day_in_week}"
 
     questions_and_answers.append({
         "question_text": f"What was the maximum glucose drop following activity on {day_name}?",
         "answer": round(exercise_responses[day_key]['max_drop'], 1),
         "answer_generation_rule": f"Subtract the lowest post-exercise glucose value within 1 hour time window from the pre-exercise baseline on {day_name}.",
-        "answer_instruction": f"Subtract the lowest post-exercise glucose value within 1 hour time window from the pre-exercise baseline on {day_name}, as a float with one decimal.",
+        "answer_instruction": f"On {day_name}, calculate the difference between the pre-exercise baseline (the glucose value immediately before exercise) and the lowest glucose value within the 2-hour post-exercise window. Return the result as a float rounded to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 35.0
@@ -823,13 +849,16 @@ def generate_questions_and_answers(patient_data):
 
     random_day = random.randint(1, 30)
     day_key = f"day{random_day}"
-    day_name = f"day {random_day}"
+    
+    week = (random_day - 1) // 7 + 1
+    day_in_week = (random_day - 1) % 7 + 1
+    day_name = f"week {week}, day {day_in_week}"
 
     questions_and_answers.append({
         "question_text": f"How long after exercise did the patient's glucose reach its lowest point on {day_name}?",
         "answer": exercise_responses[day_key]['time_to_lowest_post_exercise'],
         "answer_generation_rule": f"Find the time difference (in minutes) between exercise end and the post-exercise glucose nadir on {day_name}.",
-        "answer_instruction": f"Return the number of minutes it took to reach the lowest glucose level after exercise within 1 hour time window on {day_name}.",
+        "answer_instruction": f"On {day_name}, starting from the end of exercise, find the time it takes to reach the lowest glucose value within the 2-hour post-exercise window. Return the duration in minutes.",
         "answer_type": "int",
         "metric": "MAE",
         "example_answer": 45
@@ -843,10 +872,10 @@ def generate_questions_and_answers(patient_data):
 
 
     questions_and_answers.append({
-        "question_text": "On which days of the week does post-exercise glucose tend to be stable?",
+        "question_text": "On which days does post-exercise glucose tend to be stable?",
         "answer": stable_days_after_exercise,
-        "answer_generation_rule": "For each day with exercise, compute the coefficient of variation (CV) of glucose levels in the 60-minute post-exercise window. If CV is below 36%, classify the day as stable",
-        "answer_instruction": "Return a list of day index (1-based) for which the 1 hour post-exercise glucose coefficient of variation was below 36%. ",
+        "answer_generation_rule": "For each day with exercise, compute the coefficient of variation (CV) of glucose levels in the 60-minute post-exercise window. If CV is below 36, classify the day as stable",
+        "answer_instruction": "Return a list of day index (1-based) in for which the 2 hour post-exercise glucose coefficient of variation was below 36. ",
         "answer_type": "list of int",
         "metric": "F1",
         "example_answer": [1, 3, 15, 28]
@@ -999,15 +1028,14 @@ def main(input_file=None,
 
 
 if __name__ == "__main__":
-    num_patients = 2
-    controller = "hcl0"
-    scenario_name = "light_eater_cycling"
-    base_path = f"./SimulationData/{scenario_name}_{controller}"
-    output_path = "./QA_pairs"
+    num_patients = 20
+    scenario_name = "cycling"
+    base_path = f"./SimulationData/{scenario_name}"
+    output_path = f"./QA_pairs/{scenario_name}"
     os.makedirs(output_path, exist_ok=True)
 
     for num in range(num_patients):
-        patient_id = f"{scenario_name}_{num}"
+        patient_id = f"Patient_{num}"
         input_file = os.path.join(base_path, f"{patient_id}_simulation_data.jsonl")
-        output_file = os.path.join(output_path, f"{patient_id}_questions_answers_{controller}.jsonl")
+        output_file = os.path.join(output_path, f"{patient_id}_questions_answers.jsonl")
         main(input_file, output_file, include_patient_data=True)
