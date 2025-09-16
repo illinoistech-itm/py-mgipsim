@@ -28,27 +28,38 @@ if __name__ == '__main__':
     settings_file = simulation_folder.load_settings_file(args, results_folder_path)
 
     # Programatically define scenario
+    args.number_of_days = 3
+
     args.controller_name = "HCL0" # Select controller folder in pymgipsim/Controller/...
     args.model_name = "T1DM.ExtHovorka" # Select Hovorka model
-    args.patient_names = ["Patient_3", "Patient_4"] # Select Patient in pymgipsim/VirtualPatient/Models/T1DM/ExtHovorka/Patients
+    # Select Patient in pymgipsim/VirtualPatient/Models/T1DM/ExtHovorka/Patients
+    args.patient_names = ["Patient_3", "Patient_4"]
+
     # physical activity
     args.running_speed      = [5.0]
-    args.running_start_time = [382.0]
-    args.running_duration   = [30.0]
+    args.running_start_time = [0.0]
+    args.running_duration   = [0.0]
     args.running_incline    = [0.5]
-    args.cycling_start      = [596.0]
-    args.cycling_duration   = [20.0]
-    args.cycling_power      = [90.0]
+
+    args.cycling_start_time = [1120.0]
+    args.cycling_duration = [30.0]
+    args.cycling_power = [90.0]
 
     args.plot_patient = 0 # Plots patient glucose, intakes, heartrate
-    args.breakfast_carb_range = [60, 100]
-    args.am_snack_carb_range = [10, 20]
-    args.lunch_carb_range = [80, 120]
-    args.pm_snack_carb_range = [10, 20]
-    args.dinner_carb_range = [80, 120]
-    args.random_seed = 100
 
-    args.number_of_days = 30
+    args.breakfast_carb_range = [30, 60]
+    args.am_snack_carb_range = [10, 20]
+    args.lunch_carb_range = [70, 90]
+    args.pm_snack_carb_range = [10, 20]
+    args.dinner_carb_range = [80, 100]
+
+    settings_file.input_generation.breakfast_time_range = [450, 500]
+    settings_file.input_generation.am_snack_time_range = [660, 680]
+    settings_file.input_generation.lunch_time_range = [720, 750]
+    settings_file.input_generation.dinner_time_range = [1050, 1080]
+    settings_file.input_generation.pm_snack_time_range = [1150, 1180]
+
+    args.random_seed = 100
 
     args.to_excel = True
 
@@ -82,12 +93,12 @@ if __name__ == '__main__':
 
         settings_file = generate_virtual_subjects_main(scenario_instance=settings_file, args=args, results_folder_path=results_folder_path)
 
-        settings_file = generate_inputs_main(scenario_instance = settings_file, args = args, results_folder_path=results_folder_path, random_scenario=random_scenario)
+        settings_file = generate_inputs_main(scenario_instance = settings_file, args = args, results_folder_path=results_folder_path)  # , random_scenario=random_scenario
 
         # faults_input = generate_faults.generate_faults_from_file(faults_file=faults_spec, simulation_days=args.number_of_days, simulation_start_time=simulation_start_time)  # , sampling_time=args.sampling_time
 
-        faults_input = generate_faults.generate_random_faults(simulation_days=args.number_of_days, intensity=0.2, random_state=args.random_seed)
+        # faults_input = generate_faults.generate_random_faults(simulation_days=args.number_of_days, intensity=0.2, random_state=args.random_seed)
 
-    model,faults_label = generate_results_main(scenario_instance = settings_file, args = vars(args), results_folder_path = results_folder_path, faults_array=faults_input)
+    model,faults_label = generate_results_main(scenario_instance = settings_file, args = vars(args), results_folder_path = results_folder_path)  # , faults_array=faults_input
 
-    figures = generate_plots_main(results_folder_path, args, faults_input)
+    figures = generate_plots_main(results_folder_path, args) # , faults_input

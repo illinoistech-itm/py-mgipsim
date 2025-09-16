@@ -70,6 +70,10 @@ class VanillaMPC:
         self.bounds.u_min[2, :] = self.bounds.u_max[2, :] = 1 - self.pw_data_object.energy_expenditure_pw[-2]
         self.bounds.u_min[3, :] = self.bounds.u_max[3, :] = 1
 
+        # Hypoglycemia safety: restrict insulin if glucose is low or dropping
+        # if current_cgm < 100 or self.pw_data_object.get_dcgm_dt() < 0:
+        #     self.bounds.u_max[0, :] = self.demographic_info.get_basal_rate_mU_min()
+
         qop = self.mpc_set()
         x_solution, exit_flag = self.mpc_solve(qop)
 
@@ -102,7 +106,15 @@ class VanillaMPC:
             bolus_out = 0
         else:
             basal_out = self.demographic_info.get_basal_rate()  # U/hr
+            # safety bound: set cap bolus
             bolus_out = (opt_insulin - self.demographic_info.get_basal_rate_mU_min()) / 1000 * T
+            # extra = opt_insulin - self.demographic_info.get_basal_rate_mU_min()
+            # bolus_out = min(extra / 1000 * self.T, self.max_bolus)  # cap bolus
+
+        # safety guardrail
+        if current_cgm < 100 or self.pw_data_object.get_dcgm_dt()/self.T < -3:  # dcgm_dt in mg/dL per minute
+            basal_out = 0.0
+            bolus_out = 0.0
 
         return basal_out, bolus_out
 
