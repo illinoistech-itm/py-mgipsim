@@ -33,7 +33,7 @@ if __name__ == '__main__':
     args.controller_name = "HCL0" # Select controller folder in pymgipsim/Controller/...
     args.model_name = "T1DM.ExtHovorka" # Select Hovorka model
     # Select Patient in pymgipsim/VirtualPatient/Models/T1DM/ExtHovorka/Patients
-    args.patient_names = ["Patient_3", "Patient_4"]
+    # args.patient_names = ["Patient_3", "Patient_4"]
 
     # physical activity
     args.running_speed      = [5.0]
@@ -51,13 +51,13 @@ if __name__ == '__main__':
     args.am_snack_carb_range = [10, 20]
     args.lunch_carb_range = [70, 90]
     args.pm_snack_carb_range = [10, 20]
-    args.dinner_carb_range = [80, 100]
+    args.dinner_carb_range = [70, 90]
 
-    settings_file.input_generation.breakfast_time_range = [450, 500]
+    settings_file.input_generation.breakfast_time_range = [420, 480]
     settings_file.input_generation.am_snack_time_range = [660, 680]
     settings_file.input_generation.lunch_time_range = [720, 750]
     settings_file.input_generation.dinner_time_range = [1050, 1080]
-    settings_file.input_generation.pm_snack_time_range = [1150, 1180]
+    settings_file.input_generation.pm_snack_time_range = [1200, 1260]
 
     args.random_seed = 100
 
