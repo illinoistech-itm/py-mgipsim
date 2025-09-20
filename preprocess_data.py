@@ -52,7 +52,7 @@ def extract_carb_events(data, i):
 
     # Meals: [breakfast, lunch, dinner]
     if "meal_carb" in data["inputs"]:
-        mags = data["inputs"]["meal_carb"]["magnitude"][i]
+        mags = np.round(data["inputs"]["meal_carb"]["magnitude"][i],1)
         times = data["inputs"]["meal_carb"]["start_time"][i]
         meal_types = ["breakfast", "lunch", "dinner"]
         for idx, (carbs, t) in enumerate(zip(mags, times)):
@@ -67,7 +67,7 @@ def extract_carb_events(data, i):
 
     # Snacks: [morning_snack, afternoon_snack]
     if "snack_carb" in data["inputs"]:
-        mags = data["inputs"]["snack_carb"]["magnitude"][i]
+        mags = np.round(data["inputs"]["snack_carb"]["magnitude"][i],1)
         times = data["inputs"]["snack_carb"]["start_time"][i]
         snack_types = ["morning_snack", "afternoon_snack"]
         for idx, (carbs, t) in enumerate(zip(mags, times)):
@@ -85,10 +85,10 @@ def extract_carb_events(data, i):
 
 def extract_insulin_events(data, i):
     events = []
-    for source in ["basal_insulin", "bolus_insulin"]:
+    for source in ["basal_insulin", "bolus_insulin"]: 
         if source not in data["inputs"]:
             continue
-        magnitudes = data["inputs"][source]["magnitude"][i]
+        magnitudes = np.round(data["inputs"][source]["magnitude"][i],1)
         start_times = data["inputs"][source]["start_time"][i]
         for dos, t in zip(magnitudes, start_times):
             if dos == 0:
@@ -109,7 +109,7 @@ def extract_exercise_events_combined(data, i):
     for source, label in [("running_speed", "running"), ("cycling_power", "cycling")]:
         if source not in data["inputs"]:
             continue
-        magnitudes = data["inputs"][source]["magnitude"][i]
+        magnitudes = np.round(data["inputs"][source]["magnitude"][i],1)
         start_times = data["inputs"][source]["start_time"][i]
         durations = data["inputs"][source]["duration"][i]
         for mag, t, d in zip(magnitudes, start_times, durations):
@@ -129,7 +129,7 @@ def extract_exercise_events_combined(data, i):
 
 def extract_insulin_from_csv(csv_path):
     df = pd.read_csv(csv_path)
-    insulin_values = df.iloc[:,0].tolist()
+    insulin_values = df.iloc[:,0].round(1).tolist()
     return {"magnitude": insulin_values,}
 
 def preprocess_data(simulation_path, bg_path, insulin_csv_path, output_path, num_people, scenario_name):
@@ -167,7 +167,7 @@ def preprocess_data(simulation_path, bg_path, insulin_csv_path, output_path, num
         # Blood glucose
         try:
             df = pd.read_excel(bg_path, sheet_name=sheet_name)
-            df["BG"] = df["IG (mmol/L)"] * 18
+            df["BG"] = (df["IG (mmol/L)"] * 18).round(1)
             print(f"Loaded data for {sheet_name}: {df.shape}")
 
             simulation_data["bg_mgdl"] = df["BG"].tolist()
@@ -184,7 +184,7 @@ def preprocess_data(simulation_path, bg_path, insulin_csv_path, output_path, num
 
 
 if __name__ == "__main__":
-    for FOLDER_NAME in ["cycling"]:
+    for FOLDER_NAME in ["cycling", "running", "default"]:
         BASE_PATH = os.path.join("SimulationResults", FOLDER_NAME)
         SIMULATION_PATH = os.path.join(BASE_PATH, "simulation_settings.json")
         BG_PATH = os.path.join(BASE_PATH, "model_state_results.xlsx")
