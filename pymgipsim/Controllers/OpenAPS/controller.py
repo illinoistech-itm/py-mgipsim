@@ -22,7 +22,7 @@ class Controller:
         if scenario_instance.patient.model.name != T1DM.ExtHovorka.Model.name:
             raise Exception("OpenAPS controller only supports the ExtHovorka model.")
 
-        self.dT = 5  # minutes
+        self.dT = int(scenario_instance.settings.sampling_time)  # minutes
         self.controller = ORefZeroController()
 
         # Check server health using first controller
@@ -54,8 +54,8 @@ class Controller:
             else:
                 carb_ratio = 10  # Default g/U
 
-            if hasattr(self.demographic_info, "total_daily_dose"):
-                max_daily_basal = self.demographic_info.total_daily_dose[patient_idx]
+            if hasattr(self.demographic_info, "total_daily_basal"):
+                max_daily_basal = self.demographic_info.total_daily_basal[patient_idx]
             else:
                 max_daily_basal = 36  # Default U/day
 
@@ -78,6 +78,14 @@ class Controller:
                 "type": "current",  # Profile type
             }
 
+            print(
+                f"Initialized OpenAPS for {patient_name}"
+                f" with basal {profile['current_basal']} U/h"
+                f", isf {profile['sens']} mg/dL per U"
+                f", carb ratio {profile['carb_ratio']} g/U"
+                f", max basal {profile['max_basal']} U/h"
+                f", and max daily basal {profile['max_daily_basal']} U/day"
+            )
             # Create a controller instance for this patient
             self.controller.initialize_patient(patient_name, profile)
 
@@ -121,12 +129,6 @@ class Controller:
                     )
                     basal = action.get("basal", 0.0) * 60  # U/min * 60 = U/h
                     bolus = action.get("bolus", 0.0)  # U
-
-                    # meal bolus
-                    carb_ratio = self.controller.patient_profiles[
-                        self._patient_name(patient_idx)
-                    ]["carb_ratio"]
-                    bolus += sum_meals / carb_ratio  # g / (g/U) = U
 
                     insulin_rate = (
                         UnitConversion.insulin.Uhr_to_mUmin(basal)

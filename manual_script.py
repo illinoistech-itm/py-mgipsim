@@ -25,17 +25,45 @@ if __name__ == '__main__':
     settings_file = simulation_folder.load_settings_file(args, results_folder_path)
 
     # Programatically define scenario
-    args.controller_name = "OpenLoop" # Select controller folder in pymgipsim/Controller/...
+    args.controller_name = (
+        "OpenAPS"  # Select controller folder in pymgipsim/Controller/...
+    )
     args.model_name = "T1DM.ExtHovorka" # Select Hovorka model
     # args.patient_names = ["Patient_1"] # Select Patient in pymgipsim/VirtualPatient/Models/T1DM/ExtHovorka/Patients
+    args.patient_names = [
+        "Patient_1",
+        "Patient_2",
+        "Patient_3",
+        "Patient_4",
+        "Patient_5",
+        "Patient_6",
+        "Patient_7",
+        "Patient_8",
+        "Patient_9",
+        "Patient_10",
+        "Patient_11",
+        "Patient_12",
+        "Patient_13",
+        "Patient_14",
+        "Patient_15",
+        "Patient_16",
+        "Patient_17",
+        "Patient_18",
+        "Patient_19",
+        "Patient_20",
+    ]
     args.running_speed = 0.0 # Turn off physical activity
-    args.plot_patient = 0 # Plots patient glucose, intakes, heartrate
-    args.breakfast_carb_range = [80, 120]
+    args.plot_patient = (
+        0  # Plots patient glucose, intakes, heartrate - commented to plot all patients
+    )
+    args.breakfast_carb_range = [30, 60]
     args.am_snack_carb_range = [10, 20]
-    args.lunch_carb_range = [80, 120]
+    args.lunch_carb_range = [30, 60]
     args.pm_snack_carb_range = [10, 20]
-    args.dinner_carb_range = [80, 120]
+    args.dinner_carb_range = [30, 60]
     args.random_seed = 100
+    args.number_of_days = 30
+    args.sampling_time = 5
 
     activity_args_to_scenario(settings_file, args)
     if not args.scenario_name:
@@ -46,7 +74,12 @@ if __name__ == '__main__':
 
         settings_file = generate_inputs_main(scenario_instance = settings_file, args = args, results_folder_path=results_folder_path)
 
-
     model,_ = generate_results_main(scenario_instance = settings_file, args = vars(args), results_folder_path = results_folder_path)
 
-    figures = generate_plots_main(results_folder_path, args)
+    # Generate plots for all patients
+    all_figures = []
+    for i in range(len(args.patient_names)):
+        args.plot_patient = i
+        print(f"Generating plots for {args.patient_names[i]} (index {i})")
+        figures = generate_plots_main(results_folder_path, args)
+        all_figures.append(figures)
