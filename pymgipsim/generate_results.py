@@ -81,6 +81,13 @@ def generate_results_main(scenario_instance, args, results_folder_path, faults_a
 			# list [states]
 			state_units = cohort.model_solver.model.states.state_units
 
+			# Save insulin input
+            insulin_array = model.inputs.as_array[:, 3, :]  
+            df_insulin = pd.DataFrame(insulin_array.T)      
+
+            insulin_path = os.path.join(results_folder_path, "insulin_input.csv")
+            df_insulin.to_csv(insulin_path, index=False)
+
 			if args['to_excel']:
 				if not args['no_print']:
 					print(">>>>> Formatting and Saving Results")
