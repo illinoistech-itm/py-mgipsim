@@ -30,7 +30,7 @@ from typing import Any, Dict, List, Tuple, Optional
 import numpy as np
 import pandas as pd
 
-# === Your GT rules module ===
+# === GT rules module ===
 import generate_ground_truth_rule as ggt
 
 # ----------------------------- Config & Logging ------------------------------
