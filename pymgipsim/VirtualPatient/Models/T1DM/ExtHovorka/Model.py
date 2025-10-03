@@ -52,6 +52,8 @@ class Model(BaseModel, UnitConversion):
         self.F01_effect: bool = True
         self.Physact_effect: bool = True
 
+        self.faults_label = None
+
     @staticmethod
     @njit("float64[:,:](float64[:,:],float64,float64[:,:],float64[:,:])", cache=True)
     def model(states, time, parameters, inputs):

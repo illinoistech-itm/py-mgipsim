@@ -18,7 +18,7 @@ faults_id_dict = {
 
 
 
-def generate_faults_from_file(faults_file, simulation_days, simulation_start_time):
+def generate_faults_from_file(faults_file, simulation_days):
     """
     Generates a 1D NumPy array representing a timeline of faults.
 
@@ -53,8 +53,9 @@ def generate_faults_from_file(faults_file, simulation_days, simulation_start_tim
             continue # Skip if the label is not in our map
 
         # Calculate the start minute index for this event
-        time_delta = row['Start_Time'] - simulation_start_time
-        start_minute = int(time_delta.total_seconds() / 60)
+        # time_delta = row['Start_Time'] - simulation_start_time
+        # start_minute = int(time_delta.total_seconds() / 60)
+        start_minute = int(row['Start_Time'])
         # Get the duration of the fault in minutes
         duration_minutes = int(row['Period'])
         # Calculate the end minute (exclusive)
@@ -79,7 +80,7 @@ def generate_faults_from_file(faults_file, simulation_days, simulation_start_tim
 
 
 
-def generate_random_faults(simulation_days, intensity=0.1, random_state=100):
+def generate_random_faults(simulation_days, intensity=0.1, random_state=100, faulty_type=None):
     """
     Randomly inject non-overlapping faults into a timeline of given duration.
 
@@ -112,7 +113,9 @@ def generate_random_faults(simulation_days, intensity=0.1, random_state=100):
             fault_input[i] = fault_id
             used_indices.add(i)
 
-    for fault_id in faults_id_dict:
+    target_faults_id_dict = {k: v for k, v in faults_id_dict.items() if v in faulty_type}
+
+    for fault_id in target_faults_id_dict:
         injected = False
         tries = 0
         while not injected and tries < 1000:
@@ -139,7 +142,7 @@ def generate_random_faults(simulation_days, intensity=0.1, random_state=100):
                     injected = True
 
     # If there's remaining quota for faults, randomly inject more from any fault
-    all_fault_ids = list(faults_id_dict.keys())
+    all_fault_ids = list(target_faults_id_dict.keys())
     while total_fault_minutes > 0:
         fault_id = random.choice(all_fault_ids)
         if fault_id in one_point_faults:

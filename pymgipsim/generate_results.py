@@ -27,8 +27,6 @@ import numpy as np
 np.random.seed(DEFAULT_RANDOM_SEED)
 
 
-
-
 def get_metrics(model):
 	metrics = []
 	analyzer = Agata()
@@ -63,9 +61,10 @@ def generate_results_main(scenario_instance, args, results_folder_path, faults_a
 			with open(os.path.join(results_folder_path, "multiscale_model.pkl"), 'wb') as f:
 				pickle.dump(cohort.model_solver.multiscale_model, f)
 
-
 		case 'SingleScaleSolver':
 			_ , faults_label = cohort.model_solver.do_simulation(no_progress_bar = args['no_progress_bar'], faults_array=faults_array)
+
+			cohort.model_solver.model.faults_label = np.array(faults_label)
 
 			model = cohort.model_solver.model
 
@@ -87,7 +86,7 @@ def generate_results_main(scenario_instance, args, results_folder_path, faults_a
 				with pandas.ExcelWriter(os.path.join(results_folder_path, "model_state_results.xlsx")) as writer:
 					save_to_xls(state_results, state_names, state_units, writer, args["no_progress_bar"], faults_label)
 
-	return cohort, faults_label #None#get_metrics(cohort.singlescale_model)
+	return cohort #None#get_metrics(cohort.singlescale_model)
 
 if __name__ == '__main__':
 

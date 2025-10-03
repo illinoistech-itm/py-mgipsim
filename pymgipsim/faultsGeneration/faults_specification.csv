@@ -1,57 +1,55 @@
 Start_Time,Period,Data Label,Description
-2023-01-01 02:05,1,negative_spike,"Pressure-induced Sensor Attenuation: Sudden negative drop in BG during the night."
-2023-01-02 09:05,1,negative_spike,"Isolated Unphysiological Spike: Single point negative spike during exercise. (Exercise time TBD)"
-2023-01-03 10:05,1,negative_spike,"Isolated Unphysiological Spike: Single point negative spike during exercise. (Exercise time TBD)"
-2023-01-04 08:35,1,negative_spike,"Isolated Unphysiological Spike: Single point negative spike during exercise. (Exercise time TBD)"
-2023-01-05 09:35,1,negative_spike,"Isolated Unphysiological Spike: Single point negative spike during exercise. (Exercise time TBD)"
-2023-01-06 11:05,1,negative_spike,"Isolated Unphysiological Spike: Single point negative spike during exercise. (Exercise time TBD)"
-2023-01-07 13:05,1,negative_spike,"Isolated Unphysiological Spike: Single point negative spike during exercise. (Exercise time TBD)"
-2023-01-08 11:05,30,missing_signal,"Subtle Communication Loss (1/5): 3 dropped data points."
-2023-01-08 14:00,180,zero_reading,"Loss of Sensitivity: Glucose readings drop to 0."
-2023-01-09 08:00,600,repeated_reading,"Replay Attack: Repeated high-level BG readings for >6 hours."
-2023-01-10 00:00,1439,missing_signal,"Communication Loss: >30% missing CGM readings for the whole day."
-2023-01-11 00:00,300,positive_basal,"Bias Injection Attack: Basal insulin rate add 0.5 during the night."
-2023-01-12 01:00,180,repeated_reading,"Loss of Sensitivity: BG readings unchanged but with noise during the night."
-2023-01-12 18:05,15,missing_signal,"Subtle Communication Loss (2/5): 3 dropped data points."
-2023-01-13 03:05,1,false_bolus,"Replay Attack: A false bolus is requested during the night."
-2023-01-13 10:00,150,negative_basal,"Command Manipulation: Negative biased basal (-0.5)."
-2023-01-13 12:30,150,unknown_under,"Under Delivery: Unknown under delivery of basal insulin."
-2023-01-14 02:05,1,negative_spike,"Pressure-induced Sensor Attenuation: Sudden negative drop in BG during the night."
-2023-01-15 00:00,1439,missing_signal,"Communication Loss: >30% missing CGM readings for the whole day."
-2023-01-16 10:00,150,min_basal,"Unauthorized Remote Control: Minimized basal."
-2023-01-16 12:30,150,unknown_stop,"Stop Delivery: Unknown stopped basal."
-2023-01-17 12:35,1,max_reading,"Saturation-based Sensor Spoofing: Single point spike after lunch to make BG > 220."
-2023-01-18 08:05,15,missing_signal,"Subtle Communication Loss (3/5): 3 dropped data points."
-2023-01-18 10:00,180,min_basal,"Unauthorized Remote Control: Minimized basal rate (action=0)."
-2023-01-18 11:00,1,false_bolus,"Unauthorized Remote Control: False bolus injected."
-2023-01-19 09:00,60,min_reading,"Complex Fault Sequence (1/4): Minimized readings."
-2023-01-19 10:00,60,repeated_reading,"Complex Fault Sequence (2/4): Repeated readings."
-2023-01-19 11:00,60,zero_reading,"Complex Fault Sequence (3/4): Zero readings."
-2023-01-19 12:00,60,negative_bias,"Complex Fault Sequence (4/4): Negative biased readings."
-2023-01-20 12:35,1,negative_spike,"Isolated Unphysiological Spike: Single point negative spike after lunch during exercise."
-,0,-,"No Faults: A day of normal operation for baseline comparison."
-2023-01-22 00:00,1439,negative_basal,"Lowered Local Glucose Concentration: Bias BG reading (-32) for the whole day."
-2023-01-23 14:05,15,missing_signal,"Subtle Communication Loss (4/5): 3 dropped data points."
-2023-01-23 23:00,1,false_meal,"Process-Aware Attack: Falsely register a meal at night when BG is low."
-2023-01-24 12:35,1,max_reading,"False Data Injection: Spike after lunch to make BG > 220."
-2023-01-24 16:05,1,negative_spike,"Isolated Unphysiological Spike: A negative spike in the late afternoon during exercise. (Exercise time TBD)"
-2023-01-25 09:00,180,repeated_reading,"Complex Faults: Repeated readings."
-2023-01-25 14:00,180,max_basal,"Malicious Pump Driver: Maximize basal injection rate: action=2"
-2023-01-25 22:00,180,false_bolus,"Fault-induced Hypoglycemia: Hypoglycemia induced at night."
-,0,-,"No Faults: A day of normal operation for baseline comparison."
-2023-01-27 00:05,1,positive_spike,"False Data Injection (1/7): Multiple positive spikes."
-2023-01-27 03:05,1,positive_spike,"False Data Injection (2/7): Multiple positive spikes."
-2023-01-27 06:05,1,positive_spike,"False Data Injection (3/7): Multiple positive spikes."
-2023-01-27 09:05,1,positive_spike,"False Data Injection (4/7): Multiple positive spikes."
-2023-01-27 12:05,1,positive_spike,"False Data Injection (5/7): Multiple positive spikes."
-2023-01-27 15:05,1,positive_spike,"False Data Injection (6/7): Multiple positive spikes."
-2023-01-27 18:05,1,positive_spike,"False Data Injection (7/7): Multiple positive spikes."
-2023-01-28 02:05,1,positive_spike,"Spike at 2am (1/3): An isolated spike during the night."
-2023-01-28 00:00,1439,missing_signal,"Communication Loss: >30% missing CGM readings for the entire day."
-2023-01-29 02:05,1,positive_spike,"Spike at 2am (2/3): An isolated spike during the night."
-2023-01-29 10:00,60,max_basal,"Personalized Dose Manipulation: Maximized basal during exercise."
-2023-01-29 10:30,1,false_bolus,"Personalized Dose Manipulation: False bolus 0.5hr after exercise starts."
-2023-01-29 14:05,15,missing_signal,"Subtle Communication Loss (5/5): 3 dropped data points."
-2023-01-30 02:05,1,positive_spike,"Spike at 2am (3/3): An isolated spike during the night."
-2023-01-30 08:05,1,positive_spike,"False Data Injection: Positive spike in the morning."
-2023-01-30 14:00,180,min_reading,"False Data Injection: Minimized BG readings to 70."
+125,1,negative_spike,Pressure-induced Sensor Attenuation: Sudden negative drop in BG during the night.
+1985,1,negative_spike,Isolated Unphysiological Spike: Single point negative spike during exercise. (Exercise time TBD)
+3485,1,negative_spike,Isolated Unphysiological Spike: Single point negative spike during exercise. (Exercise time TBD)
+4835,1,negative_spike,Isolated Unphysiological Spike: Single point negative spike during exercise. (Exercise time TBD)
+6335,1,negative_spike,Isolated Unphysiological Spike: Single point negative spike during exercise. (Exercise time TBD)
+7865,1,negative_spike,Isolated Unphysiological Spike: Single point negative spike during exercise. (Exercise time TBD)
+9425,1,negative_spike,Isolated Unphysiological Spike: Single point negative spike during exercise. (Exercise time TBD)
+10745,30,missing_signal,Subtle Communication Loss (1/5): 3 dropped data points.
+10920,180,zero_reading,Loss of Sensitivity: Glucose readings drop to 0.
+12000,600,repeated_reading,Replay Attack: Repeated high-level BG readings for >6 hours.
+12960,1439,missing_signal,Communication Loss: >30% missing CGM readings for the whole day.
+14400,300,positive_basal,Bias Injection Attack: Basal insulin rate add 0.5 during the night.
+15900,180,repeated_reading,Loss of Sensitivity: BG readings unchanged but with noise during the night.
+16925,15,missing_signal,Subtle Communication Loss (2/5): 3 dropped data points.
+17465,1,false_bolus,Replay Attack: A false bolus is requested during the night.
+17880,150,negative_basal,Command Manipulation: Negative biased basal (-0.5).
+18030,150,unknown_under,Under Delivery: Unknown under delivery of basal insulin.
+18845,1,negative_spike,Pressure-induced Sensor Attenuation: Sudden negative drop in BG during the night.
+20160,1439,missing_signal,Communication Loss: >30% missing CGM readings for the whole day.
+22200,150,min_basal,Unauthorized Remote Control: Minimized basal.
+22350,150,unknown_stop,Stop Delivery: Unknown stopped basal.
+23795,1,max_reading,Saturation-based Sensor Spoofing: Single point spike after lunch to make BG > 220.
+24965,15,missing_signal,Subtle Communication Loss (3/5): 3 dropped data points.
+25080,180,min_basal,Unauthorized Remote Control: Minimized basal rate (action=0).
+25140,1,false_bolus,Unauthorized Remote Control: False bolus injected.
+26460,60,min_reading,Complex Fault Sequence (1/4): Minimized readings.
+26520,60,repeated_reading,Complex Fault Sequence (2/4): Repeated readings.
+26580,60,zero_reading,Complex Fault Sequence (3/4): Zero readings.
+26640,60,negative_bias,Complex Fault Sequence (4/4): Negative biased readings.
+28115,1,negative_spike,Isolated Unphysiological Spike: Single point negative spike after lunch during exercise.
+30240,1439,negative_basal,Lowered Local Glucose Concentration: Bias BG reading (-32) for the whole day.
+32525,15,missing_signal,Subtle Communication Loss (4/5): 3 dropped data points.
+33060,1,false_meal,Process-Aware Attack: Falsely register a meal at night when BG is low.
+33875,1,max_reading,False Data Injection: Spike after lunch to make BG > 220.
+34085,1,negative_spike,Isolated Unphysiological Spike: A negative spike in the late afternoon during exercise. (Exercise time TBD)
+35100,180,repeated_reading,Complex Faults: Repeated readings.
+35400,180,max_basal,Malicious Pump Driver: Maximize basal injection rate: action=2
+35880,180,false_bolus,Fault-induced Hypoglycemia: Hypoglycemia induced at night.
+37445,1,positive_spike,False Data Injection (1/7): Multiple positive spikes.
+37625,1,positive_spike,False Data Injection (2/7): Multiple positive spikes.
+37805,1,positive_spike,False Data Injection (3/7): Multiple positive spikes.
+37985,1,positive_spike,False Data Injection (4/7): Multiple positive spikes.
+38165,1,positive_spike,False Data Injection (5/7): Multiple positive spikes.
+38345,1,positive_spike,False Data Injection (6/7): Multiple positive spikes.
+38525,1,positive_spike,False Data Injection (7/7): Multiple positive spikes.
+39005,1,positive_spike,Spike at 2am (1/3): An isolated spike during the night.
+38880,1439,missing_signal,Communication Loss: >30% missing CGM readings for the entire day.
+40445,1,positive_spike,Spike at 2am (2/3): An isolated spike during the night.
+40920,60,max_basal,Personalized Dose Manipulation: Maximized basal during exercise.
+40950,1,false_bolus,Personalized Dose Manipulation: False bolus 0.5hr after exercise starts.
+41165,15,missing_signal,Subtle Communication Loss (5/5): 3 dropped data points.
+41885,1,positive_spike,Spike at 2am (3/3): An isolated spike during the night.
+42245,1,positive_spike,False Data Injection: Positive spike in the morning.
+42600,180,min_reading,False Data Injection: Minimized BG readings to 70.

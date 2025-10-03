@@ -122,6 +122,8 @@ class SingleScaleSolver(SolverBase):
             ])
             print('Fault Injection Initialized')
 
+            current_input = inputs[:, :, 0]
+
             for sample in tqdm(range(1, inputs.shape[2]), disable = no_progress_bar):
                 # inject cgm faults before controller.
                 if faults_array[sample - 1] in cgm_faults_ids:
