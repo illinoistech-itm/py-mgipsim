@@ -14,7 +14,7 @@ def generate_faults_parser(add_help=False):
     # Mutually exclusive group for fault modes
     fault_mode = fault_group.add_mutually_exclusive_group()
     fault_mode.add_argument(
-        '-faults_file',
+        '--faults_file',
         type=str,
         default=None,
         help='Path to a faults specification CSV file with .'
@@ -28,14 +28,14 @@ def generate_faults_parser(add_help=False):
     # )
 
     fault_group.add_argument(
-        '-random_fault_intensity',
+        '--random_fault_intensity',
         type=float,
         default=None,
         help='Intensity(Ratio) for random fault generation (0.0 to 1.0).'
     )
 
     fault_group.add_argument(
-        '-fault_type',
+        '--fault_type',
         nargs='+',
         default=['max_basal', 'min_basal', 'positive_basal', 'negative_basal', 'unknown_stop',
                  'unknown_under', 'missing_signal', 'positive_spike', 'negative_spike', 'negative_bias',
@@ -50,7 +50,7 @@ def generate_faults_parser(add_help=False):
 
 
     fault_group.add_argument(
-        '-random_scenario',
+        '--random_scenario',
         nargs='+',
         default=None,
         choices=['meal_carb', 'meal_start_time', 'snack_carb', 'snack_start_time',
@@ -60,7 +60,7 @@ def generate_faults_parser(add_help=False):
     )
 
     fault_group.add_argument(
-        '-random_scenario_methods',
+        '--random_scenario_methods',
         nargs='+',
         default=['heavy', 'light', 'early', 'delayed', 'skipped'],
         choices=['heavy', 'light', 'early', 'delayed', 'skipped'],
@@ -73,7 +73,7 @@ def generate_faults_parser(add_help=False):
     )
 
     fault_group.add_argument(
-        '-random_scenario_intensity',
+        '--random_scenario_intensity',
         type=float,
         default=0.1,
         help='Ratio for scenario randomization.'

@@ -1,57 +1,34 @@
 # Overview
 
-This branch incorporated the faults injection module into the closed-loop simulation with the Extended Cambridge patient model and hybrid closed-loop MPC  controller running under a single scale (static body weight) setting
+This branch incorporated the faults injection, random scenarios, and anomaly detection QA data generation modules into the closed-loop simulation with the Extended Cambridge patient model and hybrid closed-loop MPC controller running under a single scale (static body weight) setting (Original simulation testbed: illinoistech-itm.github.io/py-mgipsim/)
 
-## Input
+## Usage
 
-    run manual_script.py
+The entire simulation pipeline is executed through the data_generation_main.py script from the command line. You can customize every aspect of the simulation using command-line arguments.
 
-Except for scenarios and parameters needed by the original closed-loop testbed, the following parameters need to be given in `manual_script.py`
+### Basic Simulation Example
+To run a simple 3-day simulation for 1 patient using the OpenLoop controller with random state 402:
 
-Faults can be specified in the following two ways:
+    python data_generation_main.py -d 3 -ns 1 -ctrl OpenLoop -rs 402
 
-1. Generate faults from specification file
+### Fault Injection Examples
 
-Function: 
-generate_faults.generate_faults_from_file(faults_file, simulation_days, simulation_start_time)
+You can inject faults in two ways:
 
-Parameters:
+1. Random Fault Injection
 
-    "faults_file":
-    
-        A CSV file describes when and what faults need to be injected, with columns 
-        
-        ['Start_Time', 'Period', 'Data Label', 'Description']  
-        
-        'Start_Time': Fault start time. Should be a datetime object.   (e.g., `2023-01-20 12:35`)              
-        
-        'Period': Length of fault injection. Count in minutes.    (e.g., `1`)                   
-        
-        'Data Label': Fault category.  (e.g.,  `negative_spike`)                 
-    
-        'Description': Explain the attack or malfunction simulated here. (
-        `"Isolated Unphysiological Spike: Single point negative spike during exercise."`)
-    
-        A sample file was put under:
-        
-        pymgipsim/faultsGeneration/faults_specification.csv
-    
-    simulation_days: The total number of days for the simulation timeline.
-    simulation_start_time: Indicate the beginning date and time of simulation, e.g., 'pd.Timestamp('2023-01-01 00:00:00')`
+Generate random faults with a given intensity (ratio of faulty data, between 0 and 1) with optional faulty types:
+['max_basal', 'min_basal', 'positive_basal', 'negative_basal', 'unknown_stop',
+                 'unknown_under', 'missing_signal', 'positive_spike', 'negative_spike', 'negative_bias',
+                 'positive_bias', 'min_reading', 'max_reading', 'repeated_reading', 'false_meal',
+                 'false_bolus', 'repeated episode']
+The default types are all possible faults. 
 
-2. Generate faults randomly
+For example, to run a 30-day simulation for 20 virtual patient with a 1% data of a max_basal or positive_spike fault:
 
-Function: 
+    python data_generation_main.py -d 30 -ns 20 -ctrl HCL0 --random_fault_intensity 0.01 --fault_type max_basal positive_spike
 
-generate_faults.generate_random_faults(simulation_days, intensity=0.1, random_state=100)
-
-Parameters:
-
-    simulation_days (int): Total length of the simulation.
-    intensity (float): Ratio of total timeline that should be affected by faults.
-    random_state (int): Seed for reproducibility.
-
-Constraints
+Random faults injection with the following constraints:
 
 - Every fault type is guaranteed to appear at least once.
 
@@ -61,6 +38,63 @@ Constraints
 
 - repeated_episode must be injected with a minimum 2-hour duration.
 
+2. Fault Injection from a File
+
+You can specify them in a CSV file and pass it using the --faults_file argument.
+
+Create a CSV file with the following format:
+
+    "faults_file":
+    
+        A CSV file describes when and what faults need to be injected, with columns 
+        
+        ['Start_Time', 'Period', 'Data Label', 'Description']  
+        
+        'Start_Time': Fault start time index in minute. Should be a integer.   (e.g., '4266')              
+        
+        'Period': Length of fault injection. Count in minutes.    (e.g., '1')                   
+        
+        'Data Label': Fault category.  (e.g.,  `negative_spike`)                 
+    
+        'Description': Optional. Explain the attack or malfunction simulated here. (
+        `"Isolated Unphysiological Spike: Single point negative spike during exercise."`)
+    
+A example file was put under:
+    
+    pymgipsim/faultsGeneration/faults_specification.csv
+
+Run the simulation:    
+
+    python data_generation_main.py -d 30 -ns 20 -ctrl HCL0 --faults_file my_faults.csv
+
+### Random Scenario Examples
+
+Simulation with scenario randomness by indicating arguments random_scenario and random_scenario_methods, available choices as follows:
+
+random_scenario: 
+meal_carb, meal_start_time, snack_carb, snack_start_time
+cycling_power, cycling_start_time, cycling_duration
+running_speed, running_start_time, running_duration
+
+random_scenario_methods 
+heavy: Increase 10-40% of magnitude or duration
+light: Decrease 10-40% of magnitude or duration
+early: 1-2 hour before original start_time
+delayed: 1-2 hour after original start_time
+skipped: Set 0 of magnitude
+
+This example runs a 30-day simulation introduces variability by randomly making meal start times earlier than planned.
+
+    python data_generation_main.py -d 30 -ns 1 -ctrl HCL0 --random_scenario meal_start_time random_scenario_methods early
+
+### Anomaly detection QA data generation
+Based on simulated data or data loaded from a given simulation data path, accordingly QA pairs with context will be generated.
+
+For example, generate anomaly detection QA pairs using existing simulation data:
+    
+    python data_generation_main.py --data_path SimulationResults/Simulation 10_03_2025_14_03_19
+
+For a full arguments list, run data_generation_main.py -h.
 
 ## Output
 
@@ -68,21 +102,18 @@ All simulated states with faulty injection labels will be saved under
 
 SimulationResults/[Your current simulation dictionary]/
 
-Simulated Data: model_state_results.xlsx
+Simulation Data: 
+- model_state_results.xlsx (include faults_label)
+- insulin_input.csv
+- model.pkl (include faults_label)
+- simulation_settings.json
 
-Simulated states same as the original testbed. The last column 
+QA data:
+- QA_ad.json  
+- QA_ad_with_context.json
 
-`'faults_label'`
 
-will contain one of the following labels if a fault was injected at that time:
-
-`['max_basal', 'min_basal', 'positive_basal', 'negative_basal',                       'unknown_stop', 'unknown_under', 'false_bolus', 'false_meal',`
-
-`'missing_signal', 'positive_spike', 'negative_spike', 'negative_bias',                  'positive_bias', 'min_reading', 'max_reading', 'repeated_reading', 'zero_reading', 'repeated_episode']`
-
-Else, it will be None
-
-## Faults Injection
+## Faults Injection Detail
 
 We simulated 17 fault patterns with corresponding labels as follows:
 

@@ -31,7 +31,7 @@ import numpy as np
 import pandas as pd
 
 # === GT rules module ===
-import generate_ground_truth_rule as ggt
+from QAdataGeneration.AnomalyDetection import generate_ground_truth_rule as ggt
 
 # ----------------------------- Config & Logging ------------------------------
 
@@ -46,6 +46,7 @@ logging.basicConfig(
 
 
 # ----------------------------- Utilities ------------------------------------
+
 
 def extract_ad_number(fname: str) -> int:
     """Return the numeric part after '_ad' for ordering; large fallback if none."""
@@ -206,10 +207,10 @@ def build_input_context_for_patient(base_dir: str, patient_id: str) -> Dict[str,
         - insulin_events (if csv present)
         - bg_mgdl
     """
-    patient_dir = os.path.join(base_dir, patient_id)
-    simulation_path = os.path.join(patient_dir, "simulation_settings.json")
-    bg_path = os.path.join(patient_dir, "model_state_results.xlsx")
-    insulin_csv_path = os.path.join(patient_dir, "insulin_input.csv")
+    # patient_dir = os.path.join(base_dir, patient_id)
+    simulation_path = os.path.join(base_dir, "simulation_settings.json")
+    bg_path = os.path.join(base_dir, "model_state_results.xlsx")
+    insulin_csv_path = os.path.join(base_dir, "insulin_input.csv")
 
     if not os.path.exists(simulation_path) or not os.path.exists(bg_path):
         raise FileNotFoundError(f"{patient_id}: missing simulation_settings.json or model_state_results.xlsx")
@@ -285,13 +286,15 @@ def run_qa_for_patient(base_dir: str, patient_id: str, funcs: Dict[str, Any], me
         (qa_pairs, input_context)
     """
     # Load BG dataframe and allow ggt.preprocess_df to do its work
-    xlsx = os.path.join(base_dir, patient_id, "model_state_results.xlsx")
-    if not os.path.exists(xlsx):
-        logging.warning("Skipped %s: %s not found.", patient_id, xlsx)
+    xlsx = os.path.join(base_dir, "model_state_results.xlsx")
+
+    try:
+        df = pd.read_excel(xlsx, sheet_name=patient_id, index_col=0)
+    except:
+        logging.warning("Simulation data %s for patient %s not found.", xlsx, patient_id)
         return [], {}
 
-    df = pd.read_excel(xlsx)
-    df = ggt.preprocess_df(df)  
+    df = ggt.preprocess_df(df)
 
     qa_pairs: List[Dict[str, Any]] = []
 
@@ -346,16 +349,22 @@ def write_jsonl(records: List[Dict[str, Any]], path: str) -> None:
 
 # ------------------------------ CLI -----------------------------------------
 
-def main():
+def generate_anomaly_detection_qa(data_dir):
     parser = argparse.ArgumentParser(description="Build anomaly-detection QA dataset.")
     parser.add_argument("--base_dir", type=str, default="SimulationResults", help="Root folder containing Patient_* subfolders.")
-    parser.add_argument("--out_inputs_dir", type=str, default="SimulationData", help="Folder to optionally store per-patient input snapshots (JSONL).")
-    parser.add_argument("--qa_json", type=str, default="QA_VanillaMPC.json", help="Path to write the QA json (flat list).")
-    parser.add_argument("--out_jsonl", type=str, default="VanillaMPC_anomaly_detection.jsonl", help="Final per-patient JSONL with input_context + qa_pairs.")
+    parser.add_argument("--out_inputs_dir", type=str, default="QAData", help="Folder to optionally store per-patient input snapshots (JSONL).")
+    parser.add_argument("--qa_json", type=str, default="QA_ad.json", help="Path to write the QA json (flat list).")
+    parser.add_argument("--out_jsonl", type=str, default="QA_ad_with_context.jsonl", help="Final per-patient JSONL with input_context + qa_pairs.")
     parser.add_argument("--num_patients", type=int, default=20, help="How many patients to iterate from 1..N.")
     parser.add_argument("--dump_inputs", action="store_true", help="If set, also dump per-patient input_context JSONL under out_inputs_dir.")
 
     args = parser.parse_args()
+
+    CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+    PROJECT_PARENT = os.path.dirname(os.path.dirname(CURRENT_DIR))
+
+    args.base_dir = os.path.join(PROJECT_PARENT, data_dir)
+    args.out_inputs_dir = os.path.join(args.base_dir, args.out_inputs_dir)
     os.makedirs(args.out_inputs_dir, exist_ok=True)
 
     funcs = collect_question_funcs()
@@ -364,7 +373,7 @@ def main():
     all_qa_flat: List[Dict[str, Any]] = []
     records: List[Dict[str, Any]] = []
 
-    for i in range(1, args.num_patients + 1):
+    for i in range(0, args.num_patients):
         pid = f"Patient_{i}"
         logging.info("Processing %s ...", pid)
 
@@ -385,15 +394,16 @@ def main():
 
         # optional: dump a per-patient input snapshot (mirrors your SimulationData/*.jsonl)
         if args.dump_inputs:
-            out_file = os.path.join(args.out_inputs_dir, f"{pid}_simulation_data.jsonl")
+            out_file = os.path.join( args.out_inputs_dir, f"{pid}_simulation_data.jsonl")
             with open(out_file, "w") as f:
                 f.write(json.dumps({"patient_id": pid, **input_context}) + "\n")
             logging.info("Saved input snapshot: %s", out_file)
 
     # write artifacts
-    write_qa_json(all_qa_flat, args.qa_json)
-    write_jsonl(records, args.out_jsonl)
+    write_qa_json(all_qa_flat, os.path.join(args.out_inputs_dir, args.qa_json))
+    write_jsonl(records, os.path.join(args.out_inputs_dir, args.out_jsonl))
 
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     # main()
+
