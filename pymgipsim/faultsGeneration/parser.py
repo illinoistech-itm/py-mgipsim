@@ -13,11 +13,11 @@ def generate_faults_parser(add_help=False):
 
     # Mutually exclusive group for fault modes
     fault_mode = fault_group.add_mutually_exclusive_group()
-    fault_mode.add_argument(
+    fault_mode.add_argument('-ff',
         '--faults_file',
         type=str,
         default=None,
-        help=color_help_text('Path to a faults specification CSV file with .')
+        help=color_help_text('Specify if want generate faults from predefined faults file. Path to a faults specification CSV file. ')
     )
 
     # fault_group.add_argument(
@@ -27,14 +27,14 @@ def generate_faults_parser(add_help=False):
     #     help="Simulation start time in a format like 'YYYY-MM-DD HH:MM:SS'."
     # )
 
-    fault_group.add_argument(
+    fault_group.add_argument('-rfi',
         '--random_fault_intensity',
         type=float,
         default=None,
-        help=color_help_text('Intensity(Ratio) for random fault generation (0.0 to 1.0).')
+        help=color_help_text('Specify if want generate faults randomly. Intensity(Ratio) for random fault generation (0.0 to 1.0).')
     )
 
-    fault_group.add_argument(
+    fault_group.add_argument('-ft',
         '--fault_type',
         nargs='+',
         default=['max_basal', 'min_basal', 'positive_basal', 'negative_basal', 'unknown_stop',
@@ -49,7 +49,7 @@ def generate_faults_parser(add_help=False):
     )
 
 
-    fault_group.add_argument(
+    fault_group.add_argument('-rc',
         '--random_scenario',
         nargs='+',
         default=None,
@@ -59,7 +59,7 @@ def generate_faults_parser(add_help=False):
         help=color_help_text('List of targets for scenario randomization.')
     )
 
-    fault_group.add_argument(
+    fault_group.add_argument('-rsm',
         '--random_scenario_methods',
         nargs='+',
         default=['heavy', 'light', 'early', 'delayed', 'skipped'],
@@ -68,7 +68,7 @@ def generate_faults_parser(add_help=False):
     )
 
 
-    fault_group.add_argument(
+    fault_group.add_argument('-rsi',
         '--random_scenario_intensity',
         type=float,
         default=0.1,

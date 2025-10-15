@@ -350,22 +350,26 @@ def write_jsonl(records: List[Dict[str, Any]], path: str) -> None:
 # ------------------------------ CLI -----------------------------------------
 
 def generate_anomaly_detection_qa(data_dir):
-    parser = argparse.ArgumentParser(description="Build anomaly-detection QA dataset.")
-    parser.add_argument("--base_dir", type=str, default="SimulationResults", help="Root folder containing Patient_* subfolders.")
-    parser.add_argument("--out_inputs_dir", type=str, default="QAData", help="Folder to optionally store per-patient input snapshots (JSONL).")
-    parser.add_argument("--qa_json", type=str, default="QA_ad.json", help="Path to write the QA json (flat list).")
-    parser.add_argument("--out_jsonl", type=str, default="QA_ad_with_context.jsonl", help="Final per-patient JSONL with input_context + qa_pairs.")
-    parser.add_argument("--num_patients", type=int, default=20, help="How many patients to iterate from 1..N.")
-    parser.add_argument("--dump_inputs", action="store_true", help="If set, also dump per-patient input_context JSONL under out_inputs_dir.")
+    # parser = argparse.ArgumentParser(description="Build anomaly-detection QA dataset.")
+    # parser.add_argument("--base_dir", type=str, default="SimulationResults", help="Root folder containing Patient_* subfolders.")
+    # parser.add_argument("--out_inputs_dir", type=str, default="QAData", help="Folder to optionally store per-patient input snapshots (JSONL).")
+    # parser.add_argument("--qa_json", type=str, default="QA_ad.json", help="Path to write the QA json (flat list).")
+    # parser.add_argument("--out_jsonl", type=str, default="QA_ad_with_context.jsonl", help="Final per-patient JSONL with input_context + qa_pairs.")
+    # parser.add_argument("--num_patients", type=int, default=20, help="How many patients to iterate from 1..N.")
+    # parser.add_argument("--dump_inputs", action="store_true", help="If set, also dump per-patient input_context JSONL under out_inputs_dir.")
 
-    args = parser.parse_args()
+    # args = parser.parse_args()
+    num_patients = 20
+    qa_json = "QA_ad.json"    # Path to write the QA json (flat list).
+    out_jsonl = "QA_ad_with_context.jsonl"  # Final per-patient JSONL with input_context + qa_pairs.
+    dump_inputs = False   # If set, also dump per-patient input_context JSONL under out_inputs_dir.
 
     CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
     PROJECT_PARENT = os.path.dirname(os.path.dirname(CURRENT_DIR))
 
-    args.base_dir = os.path.join(PROJECT_PARENT, data_dir)
-    args.out_inputs_dir = os.path.join(args.base_dir, args.out_inputs_dir)
-    os.makedirs(args.out_inputs_dir, exist_ok=True)
+    base_dir = os.path.join(PROJECT_PARENT, data_dir)
+    out_inputs_dir = os.path.join(base_dir, "QAData")
+    os.makedirs(out_inputs_dir, exist_ok=True)
 
     funcs = collect_question_funcs()
     meta_by_qid = collect_question_metadata(funcs)
@@ -373,11 +377,11 @@ def generate_anomaly_detection_qa(data_dir):
     all_qa_flat: List[Dict[str, Any]] = []
     records: List[Dict[str, Any]] = []
 
-    for i in range(0, args.num_patients):
+    for i in range(0, num_patients):
         pid = f"Patient_{i}"
         logging.info("Processing %s ...", pid)
 
-        qa_pairs, input_context = run_qa_for_patient(args.base_dir, pid, funcs, meta_by_qid)
+        qa_pairs, input_context = run_qa_for_patient(base_dir, pid, funcs, meta_by_qid)
         if not qa_pairs:
             continue
 
@@ -393,15 +397,15 @@ def generate_anomaly_detection_qa(data_dir):
         records.append(record)
 
         # optional: dump a per-patient input snapshot (mirrors your SimulationData/*.jsonl)
-        if args.dump_inputs:
-            out_file = os.path.join( args.out_inputs_dir, f"{pid}_simulation_data.jsonl")
+        if dump_inputs:
+            out_file = os.path.join(out_inputs_dir, f"{pid}_simulation_data.jsonl")
             with open(out_file, "w") as f:
                 f.write(json.dumps({"patient_id": pid, **input_context}) + "\n")
             logging.info("Saved input snapshot: %s", out_file)
 
     # write artifacts
-    write_qa_json(all_qa_flat, os.path.join(args.out_inputs_dir, args.qa_json))
-    write_jsonl(records, os.path.join(args.out_inputs_dir, args.out_jsonl))
+    write_qa_json(all_qa_flat, os.path.join(out_inputs_dir, qa_json))
+    write_jsonl(records, os.path.join(out_inputs_dir, out_jsonl))
 
 
 # if __name__ == "__main__":
