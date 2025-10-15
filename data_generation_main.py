@@ -23,7 +23,7 @@ def main(argv=None):
     '''Create and Parse Arguments'''
     parser = generate_parser_cli()
 
-    parser.add_argument('--data_path', type=str, default="None", help='Path to simulation data folder.')
+    parser.add_argument('--data_path', type=str, default="None", help='Path to simulation data folder. If provided, QA data will be generated from this path.')
 
     args = parser.parse_args(argv)
     print("Arguments parsed successfully.")
@@ -113,4 +113,4 @@ if __name__ == '__main__':
         # '-faults_file', 'pymgipsim/faultsGeneration/faults_specification.csv'
         '-h'
     ]
-    main(test_arguments)
+    main()
