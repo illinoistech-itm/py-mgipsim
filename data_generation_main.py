@@ -23,7 +23,7 @@ def main(argv=None):
     '''Create and Parse Arguments'''
     parser = generate_parser_cli()
 
-    parser.add_argument('--data_path', type=str, default="None", help='Path to simulation data folder,e.g., SimulationResults/Simulation 10_03_2025_14_03_19')
+    parser.add_argument('--data_path', type=str, default="None", help='Path to simulation data folder.')
 
     args = parser.parse_args(argv)
     print("Arguments parsed successfully.")
@@ -102,14 +102,15 @@ def main(argv=None):
 
 if __name__ == '__main__':
     test_arguments = [
-        '-pat', '0',
-        '-d', '3',
-        '-ns', '20',
-        '-ctrl', 'HCL0',
-        '--random_fault_intensity', '0.01',
-        # '-fault_type', 'max_basal', 'positive_spike',
-        '--random_scenario', 'meal_start_time',
-        '--random_scenario_methods', 'early',
+        # '-pat', '0',
+        # '-d', '15',
+        # '-ns', '20',
+        # '-ctrl', 'HCL0',
+        # '--random_fault_intensity', '0.01',
+        # # '-fault_type', 'max_basal', 'positive_spike',
+        # '--random_scenario', 'meal_start_time',
+        # '--random_scenario_methods', 'early',
         # '-faults_file', 'pymgipsim/faultsGeneration/faults_specification.csv'
+        '-h'
     ]
-    main()
+    main(test_arguments)

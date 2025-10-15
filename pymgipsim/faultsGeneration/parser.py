@@ -1,6 +1,6 @@
 import argparse
 import pandas as pd
-
+from pymgipsim.Interface.Messages.parser_colors import color_help_text, color_group_header_text
 
 def generate_faults_parser(add_help=False):
     """
@@ -9,7 +9,7 @@ def generate_faults_parser(add_help=False):
     parser = argparse.ArgumentParser(add_help=add_help)
 
     # Use an argument group for clean help messages
-    fault_group = parser.add_argument_group('Faults and Scenario Randomization')
+    fault_group = parser.add_argument_group(color_group_header_text('Faults and Scenario Randomization'))
 
     # Mutually exclusive group for fault modes
     fault_mode = fault_group.add_mutually_exclusive_group()
@@ -17,7 +17,7 @@ def generate_faults_parser(add_help=False):
         '--faults_file',
         type=str,
         default=None,
-        help='Path to a faults specification CSV file with .'
+        help=color_help_text('Path to a faults specification CSV file with .')
     )
 
     # fault_group.add_argument(
@@ -31,7 +31,7 @@ def generate_faults_parser(add_help=False):
         '--random_fault_intensity',
         type=float,
         default=None,
-        help='Intensity(Ratio) for random fault generation (0.0 to 1.0).'
+        help=color_help_text('Intensity(Ratio) for random fault generation (0.0 to 1.0).')
     )
 
     fault_group.add_argument(
@@ -45,7 +45,7 @@ def generate_faults_parser(add_help=False):
                  'unknown_under', 'missing_signal', 'positive_spike', 'negative_spike', 'negative_bias',
                  'positive_bias', 'min_reading', 'max_reading', 'repeated_reading', 'false_meal',
                  'false_bolus', 'repeated episode'],
-        help='Select types of faulty injection.'
+        help=color_help_text('Select types of faulty injection.')
     )
 
 
@@ -56,7 +56,7 @@ def generate_faults_parser(add_help=False):
         choices=['meal_carb', 'meal_start_time', 'snack_carb', 'snack_start_time',
                  'cycling_power', 'cycling_start_time', 'cycling_duration',
                  'running_speed', 'running_start_time', 'running_duration'],
-        help='List of targets for scenario randomization.'
+        help=color_help_text('List of targets for scenario randomization.')
     )
 
     fault_group.add_argument(
@@ -64,19 +64,15 @@ def generate_faults_parser(add_help=False):
         nargs='+',
         default=['heavy', 'light', 'early', 'delayed', 'skipped'],
         choices=['heavy', 'light', 'early', 'delayed', 'skipped'],
-        help='List of methods for scenario randomization. '
-             'heavy: Increase 10-40% of magnitude or duration'
-             'light: Decrease 10-40% of magnitude or duration'
-             'early: 1-2 hour before original start_time'
-             'delayed: 1-2 hour after original start_time'
-             'skipped: Set 0 of magnitude'
+        help=color_help_text("List of methods for scenario randomization.\n heavy - Increase 10-40 percent of magnitude or duration.\n light - Decrease 10-40 percent of magnitude or duration.\n early - 1-2 hour before original start_time.\n delayed - 1-2 hour after original start_time.\n skipped - Set 0 of magnitude")
     )
+
 
     fault_group.add_argument(
         '--random_scenario_intensity',
         type=float,
         default=0.1,
-        help='Ratio for scenario randomization.'
+        help=color_help_text('Ratio for scenario randomization.')
     )
 
     return parser
