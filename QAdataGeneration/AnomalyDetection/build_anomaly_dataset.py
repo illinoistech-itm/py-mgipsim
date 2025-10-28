@@ -219,9 +219,9 @@ def build_input_context_for_patient(base_dir: str, patient_id: str) -> Dict[str,
         payload = json.load(f)
 
     input_context: Dict[str, Any] = {}
-    input_context["carb_events"] = extract_carb_events(payload, 0)
+    input_context["carb_events"] = extract_carb_events(payload, int(patient_id.split("_")[1]))
 
-    exercise_events = extract_exercise_events(payload, 0)
+    exercise_events = extract_exercise_events(payload, int(patient_id.split("_")[1]))
     if exercise_events:
         input_context["exercise_events"] = exercise_events
 
@@ -251,19 +251,21 @@ def collect_question_funcs() -> Dict[str, Any]:
     return dict(sorted(funcs.items(), key=lambda x: extract_ad_number(x[0])))
 
 
-def collect_question_metadata(funcs: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
+def collect_question_metadata(funcs: Dict[str, Any], meta_table) -> Dict[str, Dict[str, Any]]:
     meta: Dict[str, Dict[str, Any]] = {}
     for fname, func in funcs.items():
         doc = inspect.getdoc(func)
         qid, qtext, rule, metric, answer_type, answer_instruction = parse_docstring(doc, fallback_id=fname)
+        meta_t = meta_table[meta_table['id'] == qid]
         meta[qid] = {
             "function_name": fname,
             "question_id": qid,
-            "question_text": qtext,
+            "question_text": meta_t['question'].iloc[0],       # qtext,
             "answer_generation_rule": rule,
-            "metric": metric,
+            "metric": meta_t['metric'].iloc[0],                        # metric,
             "answer_type": answer_type,
             "answer_instruction": answer_instruction,
+            "explanation": meta_t['explanation'].iloc[0]
         }
     return meta
 
@@ -325,6 +327,7 @@ def run_qa_for_patient(base_dir: str, patient_id: str, funcs: Dict[str, Any], me
             "metric": meta.get("metric", ""),
             "answer": ans,
             "example_answer": generate_example_answer(meta.get("answer_type", "")),
+            "explanation": meta['explanation']
         })
 
     # Build input_context after QA; order doesn’t matter but we reuse BG once
@@ -372,7 +375,8 @@ def generate_anomaly_detection_qa(data_dir):
     os.makedirs(out_inputs_dir, exist_ok=True)
 
     funcs = collect_question_funcs()
-    meta_by_qid = collect_question_metadata(funcs)
+    qa_table = pd.read_csv("QAdataGeneration/AnomalyDetection/QA tables - Anomaly Detection.csv")
+    meta_by_qid = collect_question_metadata(funcs, qa_table)
 
     all_qa_flat: List[Dict[str, Any]] = []
     records: List[Dict[str, Any]] = []
@@ -406,6 +410,9 @@ def generate_anomaly_detection_qa(data_dir):
     # write artifacts
     write_qa_json(all_qa_flat, os.path.join(out_inputs_dir, qa_json))
     write_jsonl(records, os.path.join(out_inputs_dir, out_jsonl))
+
+    # save context separately
+
 
 
 # if __name__ == "__main__":

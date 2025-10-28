@@ -24,6 +24,7 @@ def main(argv=None):
     parser = generate_parser_cli()
 
     parser.add_argument('--data_path', type=str, default="None", help='Path to simulation data folder. If provided, QA data will be generated from this path.')
+    parser.add_argument('--qa', action='store_true', help='Enable generation of QA data. If not provided, only simulation data will be generated.')
 
     args = parser.parse_args(argv)
     print("Arguments parsed successfully.")
@@ -96,8 +97,9 @@ def main(argv=None):
     else:
         print(f"Loading simulation data from {args.data_path}")
 
-    print("Generating anomaly detection question answering dataset...")
-    generate_anomaly_detection_qa(args.data_path)
+    if args.qa:
+        print("Generating anomaly detection question answering dataset...")
+        generate_anomaly_detection_qa(args.data_path)
 
 
 if __name__ == '__main__':
@@ -110,7 +112,10 @@ if __name__ == '__main__':
         # # '-fault_type', 'max_basal', 'positive_spike',
         # '--random_scenario', 'meal_start_time',
         # '--random_scenario_methods', 'early',
-        # '-faults_file', 'pymgipsim/faultsGeneration/faults_specification.csv'
-        '-h'
+        '--faults_file', 'pymgipsim/faultsGeneration/faults_specification.csv',
+        # '-h'
+        # '--data_path', 'SimulationResults/Simulation 10_03_2025_14_31_05',
+        '--qa',
+        '-st', '5'
     ]
     main()

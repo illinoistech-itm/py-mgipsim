@@ -117,10 +117,11 @@ class SingleScaleSolver(SolverBase):
             # Sampling: downsample every `sampling_time` minutes using max value in window
             sampled_length = len(faults_array) // self.model.sampling_time
             faults_array = np.array([
-                np.max(faults_array[i * self.model.sampling_time:(i + 1) * self.model.sampling_time])
-                for i in range(sampled_length)
+                np.max(faults_array[i * int(self.model.sampling_time):(i + 1) * int(self.model.sampling_time)]) for i in range(int(sampled_length))
             ])
             print('Fault Injection Initialized')
+
+            print(f"faults sample length: {sampled_length}")
 
             current_input = inputs[:, :, 0]
 

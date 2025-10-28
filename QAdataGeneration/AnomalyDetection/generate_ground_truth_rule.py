@@ -122,6 +122,53 @@ def extract_intervals_in_range(df, start_idx, end_idx, labels):
     sub_df = df.iloc[start_idx:end_idx].copy()
     return get_intervals_by_label(sub_df, labels)
 
+
+def extract_intervals_in_day(intervals, periods):
+    """
+    Select or truncate intervals that overlap periods that given in a day.
+
+    Args:
+        intervals: list of dicts with {'start': int, 'end': int} in minutes.
+        periods: a list of tuple (start_min, end_min) within a day, e.g. (1320, 360) for 22:00–06:00.
+
+    Returns:
+        List of dicts with {'start', 'end'} covering full night periods that overlap.
+    """
+
+    selected_intervals = []
+    for i in intervals:
+        start_mod = i["start"] % 1440
+        end_mod = i["end"] % 1440
+
+        # Check overlap with each night window
+        for ns, ne in periods:
+            # Handle normal overlap
+            overlaps = start_mod < ne and end_mod > ns
+            # Handle intervals crossing midnight (e.g., 23:00–01:00)
+            crosses_midnight = start_mod > end_mod and (start_mod < ne or end_mod > ns)
+
+            if overlaps or crosses_midnight:
+                # Truncate to full night window
+                new_start = i["start"] - start_mod + ns
+                new_end = i["start"] - start_mod + ne
+
+                # Adjust if crosses midnight
+                if new_end < new_start:
+                    new_end += 1440
+
+                # Compute intersection between [i_start, i_end] and [night_start_abs, night_end_abs]
+                start_overlap = max(i["start"], new_start)
+                end_overlap = min(i["end"], new_end)
+
+                selected_intervals.append({
+                    "start": start_overlap,
+                    "end": end_overlap
+                })
+                break  # no need to check other non-overlapping periods in a day
+
+    return selected_intervals
+
+
 def extract_hypoglycemia_intervals(df, start_idx=None, end_idx=None, nocturnal=False, min_duration=None):
     """
     Build BG<70 intervals, with optional filters.
@@ -141,7 +188,10 @@ def extract_hypoglycemia_intervals(df, start_idx=None, end_idx=None, nocturnal=F
     intervals = get_intervals_from_bool_mask(mask)
 
     if nocturnal:
-        intervals = [i for i in intervals if all((x % 1440) < 360 for x in range(i["start"], i["end"] + 1))]
+        night_period = [(0, 360)]  # 00:00–06:00 22:00–06:00: (1320, 1440), (0, 360)
+        # include any interval that overlaps with a night period
+        # intervals = [i for i in intervals if all((x % 1440) < 360 for x in range(i["start"], i["end"] + 1))]
+        intervals = extract_intervals_in_day(intervals, night_period)
     if min_duration:
         intervals = [i for i in intervals if (i["end"] - i["start"]) >= min_duration]
 
@@ -204,17 +254,17 @@ def extract_negative_spike_points_ad4(df):
 def extract_abnormal_fault_intervals_ad5(df):
     """
     ad_5: Are there any artifacts in the CGM data?
-    answer_generation_rule: Intervals where faults_label is one of the injected artifact types.
+    answer_generation_rule: Intervals where faults_label is one of the injected CGM-related artifact types.
     answer_instruction: Return a list of time intervals where the blood glucose data exhibits abnormal patterns such as sudden spikes or drops, missing values, repeated readings, or unexpected insulin behaviors.
     answer_type: list of {"start": int, "end": int}
     metric: Affinity F-score
     """
     valid_labels = [
-        "negative_spike", "missing_signal", "repeated_reading", "positive_basal",
-        "false_bolus", "negative_basal", "unknown_under", "min_basal",
-        "unknown_stop", "max_reading", "min_reading", "negative_bias",
-        "false_meal", "max_basal", "positive_spike"
+        "negative_spike", "missing_signal", "repeated_reading",  "max_reading", "min_reading",
+        "negative_bias", "positive_spike", "positive_bias", "repeated_episode", "zero_reading"
     ]
+    # Not CGM-related faults: "positive_basal", "false_bolus", "negative_basal", "unknown_under", "min_basal", "unknown_stop", "false_meal", "max_basal"
+
     return get_intervals_by_label(df, valid_labels)
 
 def extract_repeated_reading_intervals_ad6(df):
@@ -241,22 +291,22 @@ def extract_prolonged_repeated_intervals_ad7(df, min_duration=36):
 def extract_sensor_dislodged_intervals_ad8(df):
     """
     ad_8: Was the CGM sensor dislodged during this period?
-    answer_generation_rule: Time intervals with faults_label == "repeated_reading" or "zero_reading"
+    answer_generation_rule: Time intervals with faults_label == "repeated_reading" or "zero_reading" or "positive_spike" or "negative_spike"
     answer_instruction: Return a list of time intervals where the blood glucose readings either remain flat for an extended period or are recorded as exactly zero, which may indicate a dislodged or malfunctioning sensor.
     answer_type: list of {"start": int, "end": int}
     metric: Affinity F-score
     """
-    return get_intervals_by_label(df, ["repeated_reading", "zero_reading"])
+    return get_intervals_by_label(df, ["repeated_reading", "zero_reading", "positive_spike", "negative_spike"])
 
 def extract_spike_intervals_ad9(df):
     """
     ad_9: Is there an abrupt spike that could be a calibration error?
-    answer_generation_rule: Intervals with faults_label == "positive_spike" or "negative_spike"
-    answer_instruction: Return a list of time intervals where the blood glucose readings exhibit abrupt increases or decreases of approximately 60 mg/dL or more compared to the previous reading, sustained across consecutive points.
+    answer_generation_rule: Intervals with faults_label == "positive_bias" or "negative_bias"
+    answer_instruction: Return a list of time intervals where the blood glucose readings exhibit abrupt increases or decreases compared to the previous reading, sustained across consecutive points.
     answer_type: list of {"start": int, "end": int}
     metric: Affinity F-score
     """
-    return get_intervals_by_label(df, ["positive_spike", "negative_spike"])
+    return get_intervals_by_label(df, ["positive_bias", "negative_bias"])
 
 def extract_high_readings_intervals_ad10(df):
     """
@@ -266,18 +316,18 @@ def extract_high_readings_intervals_ad10(df):
     answer_type: list of {"start": int, "end": int}
     metric: Affinity F-score
     """
-    df = df.iloc[:-1]
+    # df = df.iloc[:-1]
     return get_intervals_by_label(df, ["positive_spike"])
 
 def extract_last_week_drift_intervals_ad11(df):
     """
     ad_11: Does the last week's data show signs of sensor drift?
     answer_generation_rule: Extract data from 24th to 30th day; Intervals with faults_label in: positive_spike or negative_spike or repeated_reading or zero_reading
-    answer_instruction: From day 24 to day 30, return a list of time intervals where the blood glucose readings exhibit abnormalities, including sudden large changes (≈60 mg/dL), prolonged flat-line values, or consecutive zero readings, which may indicate sensor instability or drift.
+    answer_instruction: From day 24 to day 30, return a list of time intervals where the blood glucose readings exhibit abnormalities, including sudden large changes, prolonged flat-line values, or consecutive zero readings, which may indicate sensor instability or drift.
     answer_type: list of {"start": int, "end": int}
     metric: Affinity F-score
     """
-    df = df.iloc[:-1]
+    # df = df.iloc[:-1]
     return extract_intervals_in_range(df, 23 * 288, 30 * 288,
         ["positive_spike", "negative_spike", "repeated_reading", "zero_reading"])
 
@@ -299,14 +349,14 @@ def extract_glucose_spikes_last_week_ad13(df):
     answer_type: list of {"start": int, "end": int}
     metric: Affinity F-score
     """
-    df = df.iloc[:-1]
+    # df = df.iloc[:-1]
     return extract_intervals_in_range(df, 23 * 288, 30 * 288, ["positive_spike", "negative_spike"])
 
 def extract_rapid_drop_points_ad14(df):
     """
     ad_14: Was there a rapid drop in glucose in the 14th day?
     answer_generation_rule: Extract data in day 14; Time intervals with label: negative_spike
-    answer_instruction: In day 14, return a list of time intervals where the blood glucose readings suddenly drop by approximately 60 mg/dL or more compared to the previous value.
+    answer_instruction: In day 14, return a list of time intervals where the blood glucose readings suddenly large drop compared to the previous value.
     answer_type: list of {"start": int, "end": int}
     metric: Affinity F-score
     """
@@ -371,7 +421,7 @@ def extract_last_week_hypoglycemia_intervals_ad20(df):
     answer_type: list of {"start": int, "end": int}
     metric: Affinity F-score
     """
-    df = df.iloc[:-1]
+    # df = df.iloc[:-1]
     return extract_hypoglycemia_intervals(df, 23 * 288, 30 * 288)
 
 def extract_back_to_back_hypo_hyper_ad21(df):
@@ -440,33 +490,42 @@ def count_last_week_hypoglycemia_events_ad26(df):
     """
     ad_26: How many times did I have hypo events in the last week?
     answer_generation_rule: Extract data from the 24th to the 30th day. Count the number of hypoglycemia events (continuous period counts as 1 event)
-    answer_instruction: From day 24 to 30, return the number of distinct episodes where blood glucose readings were continuously below 70 mg/dL. Each continuous stretch counts as one event.
+    answer_instruction: Extract data from the last 7 days, return the number of distinct episodes where blood glucose readings were continuously below 70 mg/dL. Each continuous stretch counts as one event.
     answer_type: int
     metric: sMAPE
     """
-    window_df = df.iloc[23 * 288:30 * 288]
+    if len(df) <= 7 * 288:
+        window_df = df.iloc[:]
+    else:
+        window_df = df.iloc[-7 * 288:]
     return len(get_intervals_from_bool_mask(window_df["BG"] < 70))
 
 def count_last_week_hyperglycemia_events_ad27(df):
     """
     ad_27: How many times did I have hyperglycemia events in the last week?
     answer_generation_rule: Extract data from the last 7 days. Count the number of distinct hyperglycemia events (BG > 180).
-    answer_instruction: From day 24 to 30, return the number of distinct episodes where blood glucose readings were continuously above 180 mg/dL.
+    answer_instruction: Extract data from the last 7 days, return the number of distinct episodes where blood glucose readings were continuously above 180 mg/dL.
     answer_type: int
     metric: sMAPE
     """
-    window_df = df.iloc[23 * 288 : 30 * 288]
+    if len(df) <= 7 * 288:
+        window_df = df.iloc[:]
+    else:
+        window_df = df.iloc[-7 * 288:]
     return len(get_intervals_from_bool_mask(window_df["BG"] > 180))
 
 def extract_prolonged_hyperglycemia_intervals_ad28(df):
     """
     ad_28: Was I in hyperglycemia for more than 4 hours last week?
     answer_generation_rule: Extract data from the last 7 days (day 24 to day 30). Identify intervals where BG > 180 persists for at least 48 consecutive data points (each representing a 5-minute interval, i.e., 4 hours).
-    answer_instruction: Return all time intervals from day 24 to 30 where blood glucose remained above 180 mg/dL for at least 48 consecutive data points (5-minute intervals).
+    answer_instruction: Return all time intervals from the last 7 days, where blood glucose remained above 180 mg/dL for at least 48 consecutive data points (5-minute intervals).
     answer_type: list of {"start": int, "end": int}
     metric: Affinity F-score
     """
-    window_df = df.iloc[23 * 288 : 30 * 288]
+    if len(df) <= 7 * 288:
+        window_df = df.iloc[:]
+    else:
+        window_df = df.iloc[-7 * 288:]
     intervals = get_intervals_from_bool_mask(window_df["BG"] > 180)
     return [i for i in intervals if i["end"] - i["start"] + 1 >= 48*5]
 
@@ -474,18 +533,19 @@ def compute_avg_recovery_time_from_hyper_ad29(df):
     """
     ad_29: How long did it generally take to reach target range after a prolonged hyperglycemia episode? 
     answer_generation_rule: Average value of the time BG returns to TIR minus the time the hyperglycemia event start
-    answer_instruction: Examine each prolonged hyperglycemia episode (lasting at least 48 consecutive data points above 180 mg/dL). For each episode, calculate the duration from the start of hyperglycemia until glucose first returns to the target range (≤180 mg/dL). Return the average of these durations, reported in minutes, as the typical recovery time.
+    answer_instruction: Examine each prolonged hyperglycemia episode (lasting at least 12 consecutive data points above 180 mg/dL). For each episode, calculate the duration from the start of hyperglycemia until glucose first returns to the target range (≤180 mg/dL). Return the average of these durations, reported in minutes, as the typical recovery time.
     answer_type: int
     metric: sMAPE
     """
-    intervals = [i for i in get_intervals_from_bool_mask(df["BG"] > 180) if i["end"] - i["start"] >= 48*5]
+    intervals = [i for i in get_intervals_from_bool_mask(df["BG"] > 180) if i["end"] - i["start"] >= 12*5]
     recovery_times = []
     for interval in intervals:
-        start_idx = interval["start"] // 5   
+        # recovery_times.append(interval["end"] - interval["start"] + 5)
+        start_idx = interval["start"] // 5
         recovery = df.iloc[start_idx:].index[df["BG"].iloc[start_idx:] <= 180].tolist()
         if recovery:
             duration_points = recovery[0] - start_idx
-            recovery_times.append(duration_points * 5) 
+            recovery_times.append(duration_points * 5)
 
     return round(sum(recovery_times) / len(recovery_times), 2) if recovery_times else np.nan
 
@@ -512,7 +572,7 @@ def find_day_with_most_out_of_range_ad31(df):
     ad_31: What day was my glucose control the most out of range?
     answer_generation_rule: Count the number of hypo and hyper labels each day. The day has the max value
     answer_instruction: Return the 1-indexed day number that had the highest total number of blood glucose readings outside the 70–180 mg/dL range.
-    answer_type: list of int (e.g., days)
+    answer_type: int
     metric: Accuracy
     """
     counts = df[(df["BG"] < 70) | (df["BG"] > 180)]['day'].value_counts()
@@ -532,12 +592,12 @@ def compute_longest_hyperglycemia_duration_ad32(df):
 def extract_negative_spikes_after_lunch_before_day20_ad33(df):
     """
     ad_33: My glucose dropped unusually fast after lunch on the 20th day. Has this happened before, and if so, when?
-    answer_generation_rule: Extract negative_spike label within 12:00–14:00, on days < 20.
-    answer_instruction: Return all time intervals between 12:00 and 14:00 on days prior to day 20 where blood glucose readings dropped abruptly by approximately 60 mg/dL or more compared to the previous reading.
+    answer_generation_rule: Extract negative_spike label within 12:00–14:00.
+    answer_instruction: Return all time intervals between 12:00 and 14:00 on where blood glucose readings dropped abruptly by approximately 60 mg/dL or more compared to the previous reading.
     answer_type: list of {"start": int, "end": int}
     metric: Affinity F-score
     """
-    mask = (df['day'] < 19) & df["minute_of_day"].between(720, 840) & (df["faults_label"] == "negative_spike")
+    mask = df["minute_of_day"].between(720, 840) & (df["faults_label"] == "negative_spike")
     return get_intervals_by_label(df[mask], ["negative_spike"])
 
 def count_alert_events(df):
@@ -569,7 +629,7 @@ def compare_alerts_first_last_week_ad34(df):
     answer_type: "yes" or "no"
     metric: Accuracy
     """
-    return "yes" if count_alert_events(df.iloc[23 * 288:]) > count_alert_events(df.iloc[:7 * 288]) else "no"
+    return "yes" if count_alert_events(df.iloc[-7 * 288:]) > count_alert_events(df.iloc[:7 * 288]) else "no"
 
 
 def extract_new_hypo_hours_last_week_ad35(df):
@@ -580,8 +640,10 @@ def extract_new_hypo_hours_last_week_ad35(df):
     answer_type: list of int
     metric: Accuracy
     """
-    early = df[(df['day'] < 21) & (df["BG"] < 70)]["hour"]
-    late = df[(df['day'] >= 23) & (df["BG"] < 70)]["hour"]
+    early_subset = df.iloc[:-7*288]
+    last_week_subset = df.iloc[-7*288:]
+    early = early_subset[early_subset["BG"] < 70]["hour"]
+    late = last_week_subset[last_week_subset["BG"] < 70]["hour"]
     return sorted(set(late) - set(early))
 
 def extract_post_lunch_glucose_exceeds_220_ad36(df):
@@ -614,12 +676,12 @@ def detect_consistent_2am_spike_pattern_ad38(df):
     """
     ad_38: The CGM shows a glucose spike at 2 am for the past three nights. Is this consistent with my normal pattern?
     answer_generation_rule: Check whether 2 am spikes also appeared on other nights (beyond days 27–29).
-    answer_instruction: Return "yes" if blood glucose exceeded 180 mg/dL at 2:00 am on any day other than days 27–29. Otherwise, return "no".
-    answer_type: "yes" or "no"
+    answer_instruction: Return a list of days that blood glucose exceeded 180 mg/dL around 2:00 am.
+    answer_type: list of int
     metric: Accuracy
     """
-    days = df['day'][(df["minute_of_day"] == 120) & (df["BG"] > 180)].unique()
-    return "yes" if set(days) - {27, 28, 29} else "no"
+    days = df['day'][(df["minute_of_day"] >= 60) & (df["minute_of_day"] <= 180) & (df["BG"] > 180)].unique()
+    return sorted(int(x) for x in days.tolist())
 
 
 def extract_post_lunch_faults_last_week_ad39(df):
@@ -632,12 +694,12 @@ def extract_post_lunch_faults_last_week_ad39(df):
     """
     valid_labels = [
         "negative_spike", "missing_signal", "repeated_reading", "positive_basal",
-        "false_bolus", "negative_basal", "unknownn_under", "min_basal",
-        "unknownn_stop", "max_reading", "min_reading", "negative_bias",
+        "false_bolus", "negative_basal", "unknown_under", "min_basal",
+        "unknown_stop", "max_reading", "min_reading", "negative_bias",
         "false_meal", "max_basal", "positive_spike"
     ]
     mask = (
-        (df['day'] >= 23) &
+        (df['day'] >= df['day'].max() -7) &
         df["minute_of_day"].between(720, 840) &
         df["faults_label"].isin(valid_labels)
     )
@@ -653,6 +715,11 @@ def extract_repeated_night_intervals_ad40(df):
     """
     return get_intervals_by_label(df[df["minute_of_day"] < 360], ["repeated_reading"])
 
+# def extract_best_last_week_ad41(df):
+#     """
+#     ad_41: On which day this week was my glucose pattern most ideal?
+#     """
+
 def extract_sensor_error_intervals_ad42(df):
     """
     ad_42: Were there any low glucose readings that might have been caused by a sensor error?
@@ -661,7 +728,7 @@ def extract_sensor_error_intervals_ad42(df):
     answer_type: list of {"start": int, "end": int}
     metric: Affinity F-score
     """
-    df = df.iloc[:-1]
+    # df = df.iloc[:-1]
     sensor_labels = {"zero_reading", "negative_bias", "min_reading", "repeated_reading", "negative_spike"}
     mask = (df["BG"] < 80) & df["faults_label"].isin(sensor_labels)
     return get_intervals_by_label(df[mask], sensor_labels)
@@ -698,15 +765,17 @@ def extract_replay_attack_ad45(df):
     """
     return get_intervals_by_label(df, ["false_bolus", "repeated_reading", "repeated_episode"])
 
-def extract_workout_manipulation_ad46(df):
-    """
-    ad_46: Was there any dangerous operation happening with my controller during my usual workouts?
-    answer_generation_rule: Extract periods labeled as bias_basal, max_basal, or false_bolus during or after exercise.
-    answer_instruction: Return all time intervals during or immediately after physical activity periods where insulin delivery behavior appears abnormal, including excessive basal delivery or unexpected bolus injections.
-    answer_type: list of {"start": int, "end": int}
-    metric: Affinity F-score
-    """
-    return get_intervals_by_label(df, ["bias_basal", "max_basal", "false_bolus"])
+
+# def extract_workout_manipulation_ad46(df):
+#     """
+#     ad_46: Was there any dangerous operation happening with my controller during my usual workouts?
+#     answer_generation_rule: Extract periods labeled as bias_basal, max_basal, or false_bolus during or after exercise.
+#     answer_instruction: Return all time intervals during or immediately after physical activity periods where insulin delivery behavior appears abnormal, including excessive basal delivery or unexpected bolus injections.
+#     answer_type: list of {"start": int, "end": int}
+#     metric: Affinity F-score
+#     """
+#     # Need exercise info
+#     return get_intervals_by_label(df, ["bias_basal", "max_basal", "false_bolus"])
 
 
 def extract_bias_attack_ad47(df):
@@ -723,7 +792,7 @@ def extract_insulin_pump_access_ad48(df):
     """
     ad_48: Has anyone accessed or controlled my insulin pump without my permission?
     answer_generation_rule: Extract periods labeled with false_bolus, bias_basal, max_basal, or min_basal.
-    answer_instruction: Return all time intervals where insulin delivery shows patterns such as unauthorized bolus injection or abnormal basal rate changes, suggesting external access to the insulin pump.
+    answer_instruction: Return all time intervals where insulin delivery shows abnormal patterns such as unauthorized bolus injection or abnormal basal rate changes, suggesting external access to the insulin pump.
     answer_type: list of {"start": int, "end": int}
     metric: Affinity F-score
     """
@@ -751,29 +820,27 @@ def extract_saturation_spoofing_ad50(df):
 
 def detect_faulty_timestamps_ad51(df):
     """
-    ad_51: Are there readings that might have been faked by tricking the sensor with saturation-based signals?
-    answer_generation_rule: Extract intervals labeled with known injected faults.
+    ad_51: Are there readings that might have been faked by false data injection attack?
+    answer_generation_rule: Extract intervals labeled with known CGM reading-related injected faults.
     answer_instruction: Return all time intervals where blood glucose data shows sudden abnormal changes, repeated values, implausible insulin actions, or other known faulty patterns that may suggest tampering or spoofing.
     answer_type: list of {"start": int, "end": int}
     metric: Affinity F-score
     """
     valid_labels = [
-        "negative_spike", "missing_signal", "repeated_reading", "positive_basal",
-        "false_bolus", "negative_basal", "unknownn_under", "min_basal",
-        "unknownn_stop", "max_reading", "min_reading", "negative_bias",
-        "false_meal", "max_basal", "positive_spike"
+        "negative_spike", "missing_signal", "repeated_reading", "max_reading", "min_reading", "negative_bias",
+        "positive_spike"
     ]
     return get_intervals_by_label(df, valid_labels)
 
 def extract_harmful_pump_operations_ad52(df):
     """
     ad_52: Has the pump done anything that seems out of line or even harmful?
-    answer_generation_rule: Extract intervals labeled with max_basal or min_basal.
-    answer_instruction: Return all time intervals where basal insulin delivery was forced to its maximum or minimum rate, regardless of physiological demand, suggesting harmful pump behavior.
+    answer_generation_rule: Extract intervals labeled with insulin delivery related faults.
+    answer_instruction: Return all time intervals where basal insulin delivery exhibit abnormal patterns such as forced to its maximum or minimum rate, regardless of physiological demand, suggesting harmful pump behavior.
     answer_type: list of {"start": int, "end": int}
     metric: Affinity F-score
     """
-    return get_intervals_by_label(df, ["max_basal", "min_basal"])
+    return get_intervals_by_label(df, ["max_basal", "min_basal", 'negative_basal', 'positive_spike', 'false_bolus'])
 
 def extract_miscalibrated_sensor_ad53(df):
     """
@@ -794,6 +861,9 @@ def extract_pressure_sensor_attenuation_ad54(df):
     metric: Affinity F-score
     """
     return get_intervals_by_label(df, ["negative_spike"])
+
+# ad_55: Were there strange, sudden spikes in my readings that could’ve been caused by the exercise?
+# ad_56: Were there periods when my sensor seemed less responsive or sensitive to changes in glucose?
 
 def detect_negative_bias_periods_ad57(df):
     """
@@ -842,12 +912,12 @@ def detect_insulin_delivery_issue_ad59(df):
 def detect_insulin_under_delivery_ad60(df):
     """
     ad_60: Were there times when it looked like I wasn’t getting enough insulin?
-    answer_generation_rule: Periods with data labelled as min_basal, negative_bias, or unknown_under.
+    answer_generation_rule: Periods with data labelled as min_basal, negative_basal, or unknown_under.
     answer_instruction: Return all time intervals where actual insulin delivery was less than expected, including reduced basal rates, possible sensor bias, or incomplete absorption.
     answer_type: list of {"start": int, "end": int}
     metric: Affinity F-score
     """
-    return get_intervals_by_label(df, ["min_basal", "negative_bias", "unknown_under"])
+    return get_intervals_by_label(df, ["min_basal", "negative_basal", "unknown_under"])
 
 def detect_insulin_under_delivery_issue_ad61(df):
     """
