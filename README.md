@@ -1,10 +1,14 @@
 # Overview
 
-This branch incorporated the faults injection, random scenarios, and anomaly detection QA data generation modules into the closed-loop simulation with the Extended Cambridge patient model and hybrid closed-loop MPC controller running under a single scale (static body weight) setting (Original simulation testbed: illinoistech-itm.github.io/py-mgipsim/)
+This branch incorporated the OpenAPS controller, faults injection, random scenarios, and anomaly detection QA data generation modules into the closed-loop simulation testbed (Original Testbed: illinoistech-itm.github.io/py-mgipsim/) with the Extended Cambridge patient model running under a single scale (static body weight) setting 
 
 ## Usage
 
 The entire simulation pipeline is executed through the data_generation_main.py script from the command line. You can customize every aspect of the simulation using command-line arguments.
+
+For a full arguments list, run 
+    
+    python data_generation_main.py -h
 
 ### Basic Simulation Example
 To run a simple 3-day simulation for 1 patient using the OpenLoop controller with random state 402:
@@ -26,7 +30,7 @@ The default types are all possible faults.
 
 For example, to run a 30-day simulation for 20 virtual patient with a 1% data of a max_basal or positive_spike fault:
 
-    python data_generation_main.py -d 30 -ns 20 -ctrl HCL0 --random_fault_intensity 0.01 --fault_type max_basal positive_spike
+    python data_generation_main.py -d 30 -ns 20 -ctrl OpenAPS --rfi 0.01 --ft max_basal positive_spike
 
 Random faults injection with the following constraints:
 
@@ -65,7 +69,7 @@ A example file was put under:
 
 Run the simulation:    
 
-    python data_generation_main.py -d 30 -ns 20 -ctrl HCL0 --faults_file my_faults.csv
+    python data_generation_main.py -d 30 -ns 20 -ctrl HCL0 --ff my_faults.csv
 
 ### Random Scenario Examples
 
@@ -85,16 +89,16 @@ skipped: Set 0 of magnitude
 
 This example runs a 30-day simulation introduces variability by randomly making meal start times earlier than planned.
 
-    python data_generation_main.py -d 30 -ns 1 -ctrl HCL0 --random_scenario meal_start_time random_scenario_methods early
+    python data_generation_main.py -d 30 -ns 1 -ctrl HCL0 --rc meal_start_time -rsm early
 
 ### Anomaly detection QA data generation
 Based on simulated data or data loaded from a given simulation data path, accordingly QA pairs with context will be generated.
 
 For example, generate anomaly detection QA pairs using existing simulation data:
     
-    python data_generation_main.py --data_path SimulationResults/Simulation 10_03_2025_14_03_19
+    python data_generation_main.py --data_path SimulationResults/Simulation 10_03_2025_14_03_19 --qa
 
-For a full arguments list, run data_generation_main.py -h.
+
 
 ## Output
 
@@ -105,6 +109,7 @@ SimulationResults/[Your current simulation dictionary]/
 Simulation Data: 
 - model_state_results.xlsx (include faults_label)
 - insulin_input.csv
+- iob.csv
 - model.pkl (include faults_label)
 - simulation_settings.json
 
