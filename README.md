@@ -1,6 +1,6 @@
 # Overview
 
-This branch incorporated the OpenAPS controller, faults injection, random scenarios, and anomaly detection QA data generation modules into the closed-loop simulation testbed (Original Testbed: illinoistech-itm.github.io/py-mgipsim/) with the Extended Cambridge patient model running under a single scale (static body weight) setting 
+This branch incorporated the OpenAPS controller, faults injection, random meal and exercise scenarios, and anomaly detection QA data generation modules into the closed-loop simulation testbed (Original Testbed: illinoistech-itm.github.io/py-mgipsim/) with the Extended Cambridge patient model running under a single scale (static body weight) setting 
 
 ## Usage
 
@@ -76,16 +76,18 @@ Run the simulation:
 Simulation with scenario randomness by indicating arguments random_scenario and random_scenario_methods, available choices as follows:
 
 random_scenario: 
-meal_carb, meal_start_time, snack_carb, snack_start_time
-cycling_power, cycling_start_time, cycling_duration
-running_speed, running_start_time, running_duration
 
-random_scenario_methods 
-heavy: Increase 10-40% of magnitude or duration
-light: Decrease 10-40% of magnitude or duration
-early: 1-2 hour before original start_time
-delayed: 1-2 hour after original start_time
-skipped: Set 0 of magnitude
+meal_carb, meal_start_time, snack_carb, snack_start_time,
+cycling_power, cycling_start_time, cycling_duration,
+running_speed, running_start_time, running_duration,
+
+random_scenario_methods:
+
+- heavy: Increase 10-40% of magnitude or duration
+- light: Decrease 10-40% of magnitude or duration
+- early: 1-2 hour before original start_time
+- delayed: 1-2 hour after original start_time
+- skipped: Set 0 of magnitude
 
 This example runs a 30-day simulation introduces variability by randomly making meal start times earlier than planned.
 
