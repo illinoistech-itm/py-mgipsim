@@ -12,3 +12,7 @@ loadmatlabpatients.py
 
 /eval_meal_est.py
 /roc_results8.pkl
+
+.vscode/
+.claude/
+.venv/

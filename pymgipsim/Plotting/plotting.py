@@ -17,6 +17,7 @@ def plot_subject_response(loaded_model, scenario:scenario, patientidx, faults_la
     fig = plt.figure(figsize = (12, 8))
     cho_color = [0.259, 0.125, 0.329]
     insulin_color = [0, 0.639, 0.224]
+    iob_color = [0.2, 0.4, 0.6]  # Blue color for IOB
     snack_color = [0.7, 0.7, 0.7]
     glucose_color = [0.69, 0.235, 0.129]
     sglt2i_color = [0.902, 0.941, 0]
@@ -70,7 +71,17 @@ def plot_subject_response(loaded_model, scenario:scenario, patientidx, faults_la
                     plt.fill_between(time_axis, UnitConversion.insulin.uUmin_to_Uhr(loaded_model.inputs.as_array[patientidx, 1, :]),color=insulin_color, label='Insulin infusion rate [U/hr]')
     except:
         pass
-    
+
+    # Plot IOB (only for ExtHovorka with OpenAPS)
+    try:
+        from pymgipsim.Controllers import OpenAPS
+        if (loaded_model.name == Models.T1DM.ExtHovorka.Model.name and
+            scenario.controller.name == OpenAPS.controller.Controller.name):
+            iob_arr = loaded_model.inputs.as_array[patientidx, 5, :]  # IOB is at index 5
+            plt.plot(time_axis, iob_arr, color=iob_color, linewidth=2, label='IOB [U]')
+    except:
+        pass
+
     try:
         label = True
         for magnitude,start_time in zip(scenario.inputs.meal_carb.magnitude[patientidx], scenario.inputs.meal_carb.start_time[patientidx]):

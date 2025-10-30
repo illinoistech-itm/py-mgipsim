@@ -17,7 +17,6 @@ from pymgipsim.faultsGeneration import faults_utils
 
 class SolverBase(ABC):
 
-
     def __init__(self, scenario_instance: scenario, model: BaseModel):
 
         # Directory where the results should be stored
@@ -49,9 +48,18 @@ class SolverBase(ABC):
                 self.controller = Controllers.HCL0.controller.Controller(self.scenario_instance)
                 self.model.inputs.uInsulin.sampled_signal[:, 0] = UnitConversion.insulin.Uhr_to_mUmin(np.asarray([x.demographic_info.basal_rate for x in self.controller.controllers]))
                 self.model.preprocessing()
+            case Controllers.OpenAPS.controller.Controller.name:
+                self.controller = Controllers.OpenAPS.controller.Controller(
+                    self.scenario_instance
+                )
+                self.model.inputs.uInsulin.sampled_signal[:, 0] = (
+                    UnitConversion.insulin.Uhr_to_mUmin(
+                        np.asarray(self.controller.demographic_info.basal)
+                    )
+                )
+                self.model.preprocessing()
             case _:  # Default case
                 raise Exception("Undefined controller, Add it to the ModelSolver class.")
-
 
     def set_solver(self, solver_name):
         match solver_name:
@@ -63,7 +71,6 @@ class SolverBase(ABC):
     @abstractmethod
     def do_simulation(self):
         pass
-
 
 
 class SingleScaleSolver(SolverBase):
