@@ -76,12 +76,10 @@ class SingleScaleSolver(SolverBase):
 
     def do_simulation(self, no_progress_bar):
 
-
         """ Initialize """
         state_results = self.model.states.as_array
         inputs = self.model.inputs.as_array
         parameters = self.model.parameters.as_array
-
 
         self.set_controller(self.scenario_instance.controller.name)
 

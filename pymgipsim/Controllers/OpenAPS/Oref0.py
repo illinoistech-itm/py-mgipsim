@@ -248,12 +248,11 @@ class ORefZeroController:
             < datetime.fromisoformat(previous_timestamp.rstrip("Z"))
             + timedelta(minutes=self.MINIMAL_TIMESTEP)
         ):
-            # TODO: check with loopinsight which one is correct
             return {
                 "basal": self.last_insulin["basal"],
                 "bolus": self.last_insulin["bolus"],
+                "iob": self.last_iob,
             }
-            # return {"basal": 0, "bolus": 0}
 
         # Extract glucose level
         glucose_level = observation.CGM  # if hasattr(observation, "CGM") else 100.0
@@ -283,6 +282,8 @@ class ORefZeroController:
         # Extract recommendation
         suggestion = response.get("suggestion", {})
         basal_rate = response.get("IIR", 0.0) / 60  # U/h -> U/min
+        iob_data = response.get("context", {}).get("iob", {})
+        iob_value = iob_data.get("iob", 0.0) if iob_data else 0.0
 
         # Calculate bolus recommendation
         # OpenAPS typically provides basal adjustments, bolus calculation
@@ -300,8 +301,13 @@ class ORefZeroController:
         # Store the last glucose time
         self.last_glucose_time[patient_name] = timestamp
         self.last_insulin = {"basal": basal_rate, "bolus": bolus_amount}
+        self.last_iob = iob_value
 
-        return {"basal": basal_rate, "bolus": bolus_amount}  # U/min, U
+        return {
+            "basal": basal_rate,
+            "bolus": bolus_amount,
+            "iob": iob_value,
+        }  # U/min, U, U
 
     def get_patient_status(self, patient_name: str) -> Optional[Dict[str, Any]]:
         """Get current patient status from the server"""

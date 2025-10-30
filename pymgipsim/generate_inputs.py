@@ -5,7 +5,7 @@ from pymgipsim.InputGeneration.carb_energy_settings import generate_carb_absorpt
 from pymgipsim.InputGeneration.meal_energy_content import calculate_daily_energy_intake, estimate_g_cho_from_energy_intake
 from pymgipsim.InputGeneration.activity_settings import generate_activities
 from pymgipsim.InputGeneration.energy_expenditure_settings import generate_energy_expenditure
-from pymgipsim.InputGeneration.insulin_settings import generate_basal_insulin, generate_bolus_insulin
+from pymgipsim.InputGeneration.insulin_settings import generate_basal_insulin, generate_bolus_insulin, generate_iob
 from pymgipsim.InputGeneration.heart_rate_settings import generate_heart_rate
 from pymgipsim.InputGeneration.generate_multiscale_inputs import generate_multiscale_inputs, generate_bodyweight_events
 
@@ -61,6 +61,7 @@ def generate_inputs_main(scenario_instance: scenario, args: argparse.Namespace, 
         case Models.T1DM.ExtHovorka.Model.name:
             scenario_instance.inputs.bolus_insulin = generate_bolus_insulin(scenario_instance, args)
             scenario_instance.inputs.basal_insulin = generate_basal_insulin(scenario_instance, args)
+            scenario_instance.inputs.iob = generate_iob(scenario_instance, args)
             scenario_instance.inputs.running_speed, scenario_instance.inputs.running_incline,\
             scenario_instance.inputs.cycling_power = generate_activities(scenario_instance, args)
             scenario_instance.inputs.heart_rate, scenario_instance.inputs.METACSM = generate_heart_rate(scenario_instance, args)

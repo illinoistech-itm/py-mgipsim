@@ -106,9 +106,9 @@ class Controller:
                 glucose = UnitConversion.glucose.concentration_mmolL_to_mgdL(
                     measurements[patient_idx]
                 )
-                uFastCarbs, uSlowCarbs, uHR, uInsulin, energy_expenditure = inputs[
-                    patient_idx
-                ]
+                uFastCarbs, uSlowCarbs, uHR, uInsulin, energy_expenditure, uIOB = (
+                    inputs[patient_idx]
+                )
                 sum_meals = np.sum(
                     uFastCarbs[sample - self.dT + 1 : sample : sample + 1]
                     + uSlowCarbs[sample - self.dT + 1 : sample : sample + 1]
@@ -129,12 +129,17 @@ class Controller:
                     )
                     basal = action.get("basal", 0.0) * 60  # U/min * 60 = U/h
                     bolus = action.get("bolus", 0.0)  # U
+                    iob = action.get("iob", 0.0)  # U
 
                     insulin_rate = (
                         UnitConversion.insulin.Uhr_to_mUmin(basal)
                         + UnitConversion.insulin.U_to_mU(bolus) / self.dT
                     )  # mU/min
                     inputs[patient_idx, 3, sample : sample + self.dT] = insulin_rate
+
+                    # Store IOB in slot 5 (6th input - uIOB)
+                    inputs[patient_idx, 5, sample : sample + self.dT] = iob
+
                 except Exception as e:
                     raise Exception(
                         f"Error getting action for patient {patient_idx}: {str(e)}"

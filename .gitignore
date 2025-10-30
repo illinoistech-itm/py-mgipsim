@@ -15,3 +15,4 @@ loadmatlabpatients.py
 
 .vscode/
 .claude/
+.venv/
