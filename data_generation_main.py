@@ -104,18 +104,18 @@ def main(argv=None):
 
 if __name__ == '__main__':
     test_arguments = [
-        # '-pat', '0',
-        # '-d', '15',
+        '-pat', '0',
+        '-d', '3',
         # '-ns', '20',
-        # '-ctrl', 'HCL0',
+        '-ctrl', 'OpenAPS',
         # '--random_fault_intensity', '0.01',
         # # '-fault_type', 'max_basal', 'positive_spike',
         # '--random_scenario', 'meal_start_time',
         # '--random_scenario_methods', 'early',
-        '--faults_file', 'pymgipsim/faultsGeneration/faults_specification.csv',
+        # '--faults_file', 'pymgipsim/faultsGeneration/faults_specification.csv',
         # '-h'
         # '--data_path', 'SimulationResults/Simulation 10_03_2025_14_31_05',
-        '--qa',
-        '-st', '5'
+        # '--qa',
+        '-st', '5',
     ]
     main()
