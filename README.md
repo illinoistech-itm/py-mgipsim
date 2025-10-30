@@ -10,6 +10,12 @@ For a full arguments list, run
     
     python data_generation_main.py -h
 
+If run with OpenAPS controller, need to deploy following server based on installation instructions in its README.md:
+
+https://github.com/ImperialGlobalSingapore/oref0/tree/kexin 
+
+Then check to the kexin branch and run it.
+
 ### Basic Simulation Example
 To run a simple 3-day simulation for 1 patient using the OpenLoop controller with random state 402:
 
