@@ -36,7 +36,7 @@ The default types are all possible faults.
 
 For example, to run a 30-day simulation for 20 virtual patient with a 1% data of a max_basal or positive_spike fault:
 
-    python data_generation_main.py -d 30 -ns 20 -ctrl OpenAPS --rfi 0.01 --ft max_basal positive_spike
+    python data_generation_main.py -d 30 -ns 20 -ctrl OpenAPS -rfi 0.01 -ft max_basal positive_spike
 
 Random faults injection with the following constraints:
 
@@ -75,11 +75,11 @@ A example file was put under:
 
 Run the simulation:    
 
-    python data_generation_main.py -d 30 -ns 20 -ctrl HCL0 --ff my_faults.csv
+    python data_generation_main.py -d 30 -ns 20 -ctrl HCL0 -ff my_faults.csv
 
 ### Random Scenario Examples
 
-Simulation with scenario randomness by indicating arguments random_scenario and random_scenario_methods, available choices as follows:
+Simulation with scenario randomness by indicating arguments random_scenario and random_scenario_methods, and random_scenario_intensity (0 to 1). available choices as follows:
 
 random_scenario: 
 
@@ -97,7 +97,7 @@ random_scenario_methods:
 
 This example runs a 30-day simulation introduces variability by randomly making meal start times earlier than planned.
 
-    python data_generation_main.py -d 30 -ns 1 -ctrl HCL0 --rc meal_start_time -rsm early
+    python data_generation_main.py -d 30 -ns 1 -ctrl HCL0 -rc meal_start_time -rsm early -rsi 0.1
 
 ### Anomaly detection QA data generation
 Based on simulated data or data loaded from a given simulation data path, accordingly QA pairs with context will be generated.
