@@ -1,7 +1,14 @@
 import zoneinfo
+import logging
 import requests
+from collections import namedtuple
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
+
+logger = logging.getLogger(__name__)
+
+# Named tuple for controller observation
+CtrlObservation = namedtuple("CtrlObservation", ["CGM", "bolus"])
 
 
 class ORefZeroController:
@@ -55,7 +62,9 @@ class ORefZeroController:
         self.last_glucose_time = {}  # patientId -> last glucose timestamp
         self.glucose_history = {}  # patientId -> list of glucose readings
         self.meal_history = {}  # patientId -> list of meal entries
+        self.bolus_history = {}  # patientId -> list of bolus entries
         self.pump_history = {}  # patientId -> list of pump events
+        self.collect_bolus = {}  # patientId -> accumulated bolus
 
         if default_profile:
             self.BASE_PROFILE.update(default_profile)
@@ -128,8 +137,10 @@ class ORefZeroController:
             self.patient_profiles[patient_name] = patient_profile
             self.glucose_history[patient_name] = []
             self.meal_history[patient_name] = []
+            self.bolus_history[patient_name] = []
             self.pump_history[patient_name] = []
             self.last_glucose_time[patient_name] = None
+            self.collect_bolus[patient_name] = 0
             return True
 
         except Exception as e:
@@ -175,7 +186,7 @@ class ORefZeroController:
         return utc_time.isoformat() + "Z"  # Append 'Z' to indicate
 
     def _prepare_new_data(
-        self, patient_name: str, glucose: float, meal: float, timestamp: str
+        self, patient_name: str, glucose: float, meal: float, meal_bolus: float, timestamp: str
     ) -> Dict[str, Any]:
         """Prepare new data to send to the server"""
         new_data = {}
@@ -203,6 +214,15 @@ class ORefZeroController:
             }
             new_data["carbEntries"] = [carb_entry]
             self.meal_history[patient_name].append(carb_entry)
+
+        # Add bolus entry if we have a meal bolus
+        if meal_bolus > 0:
+            bolus_entry = {
+                "timestamp": timestamp,
+                "bolus": meal_bolus,
+            }
+            new_data["bolusEntries"] = bolus_entry
+            self.bolus_history[patient_name].append(bolus_entry)
 
         return new_data
 
@@ -239,8 +259,14 @@ class ORefZeroController:
         timestamp = self._convert_time_to_timestamp(time)
         previous_timestamp = self.last_glucose_time.get(patient_name)
 
-        # accumulate meal data
+        # accumulate meal data and bolus data
         self.collect_meal += meal
+
+        # Get bolus from observation (default to 0 if not provided)
+        meal_bolus = getattr(observation, 'bolus', 0.0)
+        if patient_name not in self.collect_bolus:
+            self.collect_bolus[patient_name] = 0
+        self.collect_bolus[patient_name] += meal_bolus
 
         # if previous_timestamp is not None and timestamp difference < MINIMAL_TIMESTEP
         if previous_timestamp is not None and (
@@ -259,9 +285,10 @@ class ORefZeroController:
 
         # Prepare new data
         new_data = self._prepare_new_data(
-            patient_name, glucose_level, self.collect_meal, timestamp
+            patient_name, glucose_level, self.collect_meal, self.collect_bolus[patient_name], timestamp
         )
         self.collect_meal = 0  # Reset after sending
+        self.collect_bolus[patient_name] = 0  # Reset after sending
         if print_debug:
             print(new_data)
         # Prepare calculation request
