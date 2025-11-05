@@ -208,9 +208,8 @@ class ORefZeroController:
         # Add carb entry if we have a meal
         if meal > 0:
             carb_entry = {
-                "created_at": timestamp,
+                "timestamp": timestamp,
                 "carbs": meal,
-                "enteredBy": "controller",
             }
             new_data["carbEntries"] = [carb_entry]
             self.meal_history[patient_name].append(carb_entry)
