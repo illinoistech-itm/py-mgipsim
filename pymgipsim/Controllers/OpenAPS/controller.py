@@ -1,18 +1,15 @@
 import numpy as np
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime, timedelta
 from collections import namedtuple
 from pymgipsim.Utilities.Scenario import scenario
 from pymgipsim.VirtualPatient import Models
 from pymgipsim.Utilities.units_conversions_constants import UnitConversion
 from pymgipsim.InputGeneration.signal import Signal
-from pymgipsim.Controllers.OpenAPS.Oref0 import ORefZeroController
+from pymgipsim.Controllers.OpenAPS.Oref0 import ORefZeroController, CtrlObservation
+from pymgipsim.Controllers.OpenAPS.Oref0WithMealBolus import ORefZeroWithMealBolus
 from pymgipsim.VirtualPatient.Models import T1DM
-
-
-# Create a namedtuple to match the expected observation format
-CtrlObservation = namedtuple("CtrlObservation", ["CGM"])
 
 
 class Controller:
@@ -23,7 +20,19 @@ class Controller:
             raise Exception("OpenAPS controller only supports the ExtHovorka model.")
 
         self.dT = int(scenario_instance.settings.sampling_time)  # minutes
-        self.controller = ORefZeroController()
+
+        # Track simulation time
+        self.simulation_time = datetime.now()
+
+        # Extract meal schedule from scenario if available
+        meal_schedule = self._extract_meal_schedule(scenario_instance)
+
+        # Initialize ORefZeroWithMealBolus controller
+        self.controller = ORefZeroWithMealBolus(
+            meal_schedule=meal_schedule,
+            t_start=self.simulation_time
+        )
+        print(f"Using ORefZeroWithMealBolus with {len(meal_schedule)} scheduled meals")
 
         # Check server health using first controller
         if not self.controller.health_check():
@@ -89,12 +98,37 @@ class Controller:
             # Create a controller instance for this patient
             self.controller.initialize_patient(patient_name, profile)
 
-        # Track simulation time
-        self.simulation_time = datetime.now()
-
     @staticmethod
     def _patient_name(index: int) -> str:
         return f"patient_{index}"
+
+    def _extract_meal_schedule(self, scenario_instance: scenario) -> List[Tuple[float, float]]:
+        """
+        Extract meal schedule from scenario inputs.
+
+        Returns:
+            List of tuples (time_minutes, carbs_grams)
+        """
+        meal_schedule = []
+
+        # Check if meal_carb events exist in the scenario
+        if scenario_instance.inputs and scenario_instance.inputs.meal_carb:
+            meal_events = scenario_instance.inputs.meal_carb
+
+            # meal_events is a dict with 'start_time', 'duration', 'magnitude'
+            if isinstance(meal_events, dict):
+                start_times = meal_events.get('start_time', [])
+                magnitudes = meal_events.get('magnitude', [])
+
+                # Create list of (time, carbs) tuples
+                for start_time, magnitude in zip(start_times, magnitudes):
+                    if magnitude > 0:  # Only include actual meals
+                        meal_schedule.append((start_time, magnitude))
+
+        # Sort by time
+        meal_schedule.sort(key=lambda x: x[0])
+
+        return meal_schedule
 
     def run(self, measurements, inputs, states, sample):
         if sample % self.dT == 0:
@@ -114,8 +148,8 @@ class Controller:
                     + uSlowCarbs[sample - self.dT + 1 : sample : sample + 1]
                 )
 
-                # Create observation for the controller
-                observation = CtrlObservation(CGM=glucose)
+                # Create observation for the controller (with bolus=0 as placeholder)
+                observation = CtrlObservation(CGM=glucose, bolus=0.0)
 
                 # Get insulin recommendation from server
                 try:

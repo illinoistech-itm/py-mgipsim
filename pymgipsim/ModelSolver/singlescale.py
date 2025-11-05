@@ -17,6 +17,7 @@ from pymgipsim.faultsGeneration import faults_utils
 
 class SolverBase(ABC):
 
+
     def __init__(self, scenario_instance: scenario, model: BaseModel):
 
         # Directory where the results should be stored
@@ -40,7 +41,9 @@ class SolverBase(ABC):
                 self.controller = Controllers.SAPT.controller.Controller(self.scenario_instance, converted_glucose(100.0), self.model.states.state_units)
                 match self.controller.model_name:
                     case T1DM.ExtHovorka.Model.name:
-                        self.model.inputs.uInsulin.sampled_signal[:,0] = self.controller.basal.sampled_signal[:,0]
+                        self.model.inputs.uInsulin.sampled_signal[:, 0] = (
+                            self.controller.basal.sampled_signal[:, 0]
+                        )
                     case T1DM.IVP.Model.name:
                         self.model.inputs.basal_insulin.sampled_signal[:, 0] = self.controller.basal.sampled_signal[:, 0]
                 self.model.preprocessing()
@@ -61,6 +64,7 @@ class SolverBase(ABC):
             case _:  # Default case
                 raise Exception("Undefined controller, Add it to the ModelSolver class.")
 
+
     def set_solver(self, solver_name):
         match solver_name:
             case "RK4":
@@ -71,6 +75,7 @@ class SolverBase(ABC):
     @abstractmethod
     def do_simulation(self):
         pass
+
 
 
 class SingleScaleSolver(SolverBase):
@@ -84,6 +89,7 @@ class SingleScaleSolver(SolverBase):
         state_results = self.model.states.as_array
         inputs = self.model.inputs.as_array
         parameters = self.model.parameters.as_array
+
 
         self.set_controller(self.scenario_instance.controller.name)
 
