@@ -24,17 +24,16 @@ class Controller:
         # Track simulation time
         self.simulation_time = datetime.now()
 
-        # Extract meal schedule from scenario if available
-        meal_schedule = self._extract_meal_schedule(scenario_instance)
+        # Extract per-patient meal schedules from scenario if available
+        meal_schedules = self._extract_meal_schedule(scenario_instance)
+        print("scenario_instance meal schedules:")
+        print(scenario_instance.inputs.meal_carb)
+        print(meal_schedules)
 
-        # Initialize ORefZeroWithMealBolus controller
-        self.controller = ORefZeroWithMealBolus(
-            meal_schedule=meal_schedule,
-            t_start=self.simulation_time
-        )
-        print(f"Using ORefZeroWithMealBolus with {len(meal_schedule)} scheduled meals")
+        # Initialize ORefZeroWithMealBolus controller (without meal schedules)
+        self.controller = ORefZeroWithMealBolus()
 
-        # Check server health using first controller
+        # Check server health
         if not self.controller.health_check():
             raise ConnectionError("Failed to connect to OpenAPS server")
 
@@ -87,48 +86,76 @@ class Controller:
                 "type": "current",  # Profile type
             }
 
+            # Get patient-specific meal schedule
+            patient_meal_schedule = meal_schedules.get(patient_idx, [])
+
             print(
                 f"Initialized OpenAPS for {patient_name}"
                 f" with basal {profile['current_basal']} U/h"
                 f", isf {profile['sens']} mg/dL per U"
                 f", carb ratio {profile['carb_ratio']} g/U"
                 f", max basal {profile['max_basal']} U/h"
-                f", and max daily basal {profile['max_daily_basal']} U/day"
+                f", max daily basal {profile['max_daily_basal']} U/day"
+                f", and {len(patient_meal_schedule)} scheduled meals"
             )
-            # Create a controller instance for this patient
-            self.controller.initialize_patient(patient_name, profile)
+
+            # Initialize patient with profile and meal schedule
+            self.controller.initialize_patient_with_meal_schedule(
+                patient_name=patient_name,
+                profile=profile,
+                meal_schedule=patient_meal_schedule,
+                carb_factor=carb_ratio,
+                t_start=self.simulation_time,
+            )
 
     @staticmethod
     def _patient_name(index: int) -> str:
         return f"patient_{index}"
 
-    def _extract_meal_schedule(self, scenario_instance: scenario) -> List[Tuple[float, float]]:
+    def _extract_meal_schedule(
+        self, scenario_instance: scenario
+    ) -> Dict[int, List[Tuple[float, float]]]:
         """
-        Extract meal schedule from scenario inputs.
+        Extract meal schedules from scenario inputs for all patients.
 
         Returns:
-            List of tuples (time_minutes, carbs_grams)
+            Dictionary mapping patient_idx to list of tuples (time_minutes, carbs_grams)
         """
-        meal_schedule = []
+        meal_schedules = {}
 
         # Check if meal_carb events exist in the scenario
         if scenario_instance.inputs and scenario_instance.inputs.meal_carb:
             meal_events = scenario_instance.inputs.meal_carb
 
-            # meal_events is a dict with 'start_time', 'duration', 'magnitude'
-            if isinstance(meal_events, dict):
-                start_times = meal_events.get('start_time', [])
-                magnitudes = meal_events.get('magnitude', [])
+            # meal_events is an Events dataclass with 'start_time', 'duration', 'magnitude' attributes
+            # These can be either lists or numpy arrays with shape (n_patients, n_events)
+            if hasattr(meal_events, "start_time") and hasattr(meal_events, "magnitude"):
+                # Convert to numpy array if it's a list
+                start_time_array = np.asarray(meal_events.start_time)
+                magnitude_array = np.asarray(meal_events.magnitude)
 
-                # Create list of (time, carbs) tuples
-                for start_time, magnitude in zip(start_times, magnitudes):
-                    if magnitude > 0:  # Only include actual meals
-                        meal_schedule.append((start_time, magnitude))
+                # Check if we have data
+                if start_time_array.size > 0:
+                    n_patients = start_time_array.shape[0]
 
-        # Sort by time
-        meal_schedule.sort(key=lambda x: x[0])
+                    # Extract meal schedule for each patient
+                    for patient_idx in range(n_patients):
+                        patient_schedule = []
+                        start_times = start_time_array[patient_idx]
+                        magnitudes = magnitude_array[patient_idx]
 
-        return meal_schedule
+                        # Create list of (time, carbs) tuples for this patient
+                        for start_time, magnitude in zip(start_times, magnitudes):
+                            if magnitude > 0:  # Only include actual meals
+                                patient_schedule.append(
+                                    (float(start_time), float(magnitude))
+                                )
+
+                        # Sort by time
+                        patient_schedule.sort(key=lambda x: x[0])
+                        meal_schedules[patient_idx] = patient_schedule
+
+        return meal_schedules
 
     def run(self, measurements, inputs, states, sample):
         if sample % self.dT == 0:

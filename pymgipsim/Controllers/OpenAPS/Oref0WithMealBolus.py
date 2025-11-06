@@ -2,7 +2,7 @@ import logging
 from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
 from pymgipsim.Controllers.OpenAPS.Oref0 import ORefZeroController, CtrlObservation
-from pymgipsim.Controllers.OpenAPS.MealBolus import MealAnnouncementBolusController
+from pymgipsim.Controllers.OpenAPS.MealBolus import MealAnnouncementBolusController, Action
 
 logger = logging.getLogger(__name__)
 
@@ -11,10 +11,13 @@ class ORefZeroWithMealBolus:
     """
     Combined controller that uses composition to combine:
     - ORefZero for basal rate calculations
-    - MealAnnouncementBolusController for predictive meal bolus calculations
+    - MealAnnouncementBolusController for predictive meal bolus calculations (per-patient)
 
     This controller uses composition (has-a relationship) rather than inheritance
     to keep the two controllers separate and avoid variable conflicts.
+
+    Each patient has their own MealAnnouncementBolusController instance to support
+    different meal schedules and parameters per patient.
     """
 
     def __init__(
@@ -22,12 +25,6 @@ class ORefZeroWithMealBolus:
         server_url: str = "http://localhost:3000",
         timeout: int = 30,
         default_profile: Optional[Dict] = None,
-        meal_schedule: Optional[List[Tuple[float, float]]] = None,
-        carb_factor: float = 10,
-        release_time_before_meal: float = 10,
-        carb_estimation_error: float = 0.3,
-        sample_time: float = 1,
-        t_start: Optional[datetime] = None,
     ):
         """
         Initialize the combined controller.
@@ -36,28 +33,14 @@ class ORefZeroWithMealBolus:
             server_url: URL of the Node.js OpenAPS server
             timeout: Request timeout in seconds
             default_profile: Default patient profile for ORefZero
-            meal_schedule: List of tuples (time_minutes, carbs_grams), e.g.,
-                          [(120, 50), (360, 75), (720, 60)]
-            carb_factor: Carbohydrate factor in g/U (default: 10, meaning 1U per 10g CHO)
-            release_time_before_meal: Time in minutes to release bolus before meal (default: 10)
-            carb_estimation_error: Percentage of error in carbohydrate estimation (e.g., 0.3 for +/- 30%)
-            sample_time: Time period over which to deliver bolus in minutes (default: 1)
-            t_start: Patient simulation start time as datetime object (optional)
         """
         # Create ORefZeroController instance
         self.oref0_controller = ORefZeroController(
             server_url=server_url, timeout=timeout, default_profile=default_profile
         )
 
-        # Create MealAnnouncementBolusController instance
-        self.meal_bolus_controller = MealAnnouncementBolusController(
-            meal_schedule=meal_schedule,
-            carb_factor=carb_factor,
-            release_time_before_meal=release_time_before_meal,
-            carb_estimation_error=carb_estimation_error,
-            sample_time=sample_time,
-            t_start=t_start,
-        )
+        # Dictionary to store per-patient meal bolus controllers
+        self.meal_bolus_controllers: Dict[str, MealAnnouncementBolusController] = {}
 
         logger.info("ORefZeroWithMealBolus Controller initialized")
 
@@ -88,8 +71,12 @@ class ORefZeroWithMealBolus:
         """
 
         # Get meal announcement bolus (if any meal is upcoming)
-        # MealAnnouncementBolusController will calculate elapsed_time from time - t_start
-        meal_bolus_action = self.meal_bolus_controller.policy(time)
+        # Use patient-specific meal controller if available
+        if patient_name in self.meal_bolus_controllers:
+            meal_bolus_action = self.meal_bolus_controllers[patient_name].policy(time)
+        else:
+            # No meal controller for this patient, use zero bolus
+            meal_bolus_action = Action(bolus=0.0)
 
         # Create new observation with meal bolus (namedtuples are immutable)
         observation_with_bolus = CtrlObservation(
@@ -124,6 +111,53 @@ class ORefZeroWithMealBolus:
     ) -> bool:
         """Initialize patient on ORefZero controller."""
         return self.oref0_controller.initialize_patient(patient_name, profile)
+
+    def initialize_patient_with_meal_schedule(
+        self,
+        patient_name: str,
+        profile: Optional[Dict],
+        meal_schedule: List[Tuple[float, float]],
+        carb_factor: float,
+        release_time_before_meal: float = 10,
+        carb_estimation_error: float = 0.3,
+        sample_time: float = 1,
+        t_start: Optional[datetime] = None,
+    ) -> bool:
+        """
+        Initialize patient with both ORefZero profile and meal schedule controller.
+
+        Args:
+            patient_name: Unique patient identifier
+            profile: Patient profile for ORefZero
+            meal_schedule: List of tuples (time_minutes, carbs_grams)
+            carb_factor: Carbohydrate factor in g/U (from demographic_info.carb_insulin_ratio)
+            release_time_before_meal: Time in minutes to release bolus before meal (default: 10)
+            carb_estimation_error: Percentage of error in carbohydrate estimation (e.g., 0.3 for +/- 30%)
+            sample_time: Time period over which to deliver bolus in minutes (default: 1)
+            t_start: Patient simulation start time as datetime object
+
+        Returns:
+            True if initialization successful, False otherwise
+        """
+        # Initialize patient on ORefZero controller
+        oref_success = self.oref0_controller.initialize_patient(patient_name, profile)
+
+        # Create patient-specific meal bolus controller
+        self.meal_bolus_controllers[patient_name] = MealAnnouncementBolusController(
+            meal_schedule=meal_schedule,
+            carb_factor=carb_factor,
+            release_time_before_meal=release_time_before_meal,
+            carb_estimation_error=carb_estimation_error,
+            sample_time=sample_time,
+            t_start=t_start,
+        )
+
+        logger.info(
+            f"Initialized meal controller for {patient_name} with {len(meal_schedule)} meals, "
+            f"carb_factor={carb_factor} g/U"
+        )
+
+        return oref_success
 
     def health_check(self) -> bool:
         """Check if the OpenAPS server is responding."""

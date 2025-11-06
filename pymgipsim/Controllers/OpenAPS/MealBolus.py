@@ -46,9 +46,15 @@ class MealAnnouncementBolusController:
         self.sample_time = sample_time
         self.t_start = t_start
 
+        # Track which meals have been delivered (by index in meal_schedule)
+        self._delivered_meal_indices = set()
+
     def policy(self, t) -> Action:
         """
         Get bolus action for the current time.
+
+        Delivers bolus for any undelivered meals whose bolus release time has passed.
+        This ensures that even if we miss a timestep, the meal bolus still gets delivered.
 
         Args:
             t: Current time - can be either:
@@ -66,28 +72,35 @@ class MealAnnouncementBolusController:
         else:
             elapsed_time = t
 
-        # Force to int for exact time matching
-        elapsed_time = int(elapsed_time)
+        # Check all meals in schedule for any that should be delivered
+        for meal_idx, (meal_time, meal_amount) in enumerate(self._meal_schedule):
+            # Skip if already delivered
+            if meal_idx in self._delivered_meal_indices:
+                continue
 
-        # Check if there's a meal coming up at the release time
-        target_meal_time = elapsed_time + self.release_time_before_meal
+            # Calculate when bolus should be released (release_time_before_meal minutes before meal)
+            bolus_release_time = meal_time - self.release_time_before_meal
 
-        for meal_time, meal_amount in self._meal_schedule:
-            if meal_time == target_meal_time:
+            # If current time >= bolus release time, deliver the bolus
+            if elapsed_time >= bolus_release_time:
+                # Mark this meal as delivered
+                self._delivered_meal_indices.add(meal_idx)
+
                 # Add randomness to meal amount to simulate patient uncertainty
+                adjusted_meal_amount = meal_amount
                 if self.carb_estimation_error > 0:
                     random_factor = random.uniform(
                         -self.carb_estimation_error, self.carb_estimation_error
                     )
-                    meal_amount *= 1 + random_factor
+                    adjusted_meal_amount *= 1 + random_factor
 
                 # Calculate bolus in total units: meal amount / carb factor
-                bolus_total = meal_amount / self.carb_factor  # U
+                bolus_total = adjusted_meal_amount / self.carb_factor  # U
 
                 # Convert to rate (U/min) by dividing by sample_time
                 bolus_rate = bolus_total / self.sample_time  # U/min
 
                 return Action(bolus=bolus_rate)
 
-        # No meal coming up, return zero bolus
+        # No undelivered meals at this time, return zero bolus
         return Action(bolus=0)
