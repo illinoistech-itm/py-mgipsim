@@ -8,6 +8,7 @@ from pymgipsim.VirtualPatient.Models.Model import BaseModel
 from pymgipsim import Controllers
 from pymgipsim.Utilities.units_conversions_constants import UnitConversion
 from pymgipsim.VirtualPatient.Models import T1DM
+from pymgipsim.Controllers.OpenAPS.controller import MealBolusMode
 from tqdm import tqdm
 
 class SolverBase(ABC):
@@ -47,7 +48,8 @@ class SolverBase(ABC):
                 self.model.preprocessing()
             case Controllers.OpenAPS.controller.Controller.name:
                 self.controller = Controllers.OpenAPS.controller.Controller(
-                    self.scenario_instance
+                    self.scenario_instance,
+                    meal_bolus_mode=MealBolusMode.ON_THE_GO,
                 )
                 self.model.inputs.uInsulin.sampled_signal[:, 0] = (
                     UnitConversion.insulin.Uhr_to_mUmin(
