@@ -414,7 +414,7 @@ class VanillaMPC:
         self.update_state(converted_states)
         # Select hardcoded 1st patient (MPC currently works for single patient)
         G = UnitConversion.glucose.concentration_mmolL_to_mgdL(measurements[patient_idx])
-        uFastCarbs, uSlowCarbs, uHR, uInsulin, energy_expenditure = inputs[patient_idx]
+        uFastCarbs, uSlowCarbs, uHR, uInsulin, energy_expenditure, _ = inputs[patient_idx]
 
         sum_meals = np.sum(uFastCarbs[sample-self.T+1:sample:sample+1]+uSlowCarbs[sample-self.T+1:sample:sample+1])/self.T
         energy_expenditure_mean = 1+np.sum(energy_expenditure[sample-self.T+1:sample:sample+1])/self.T

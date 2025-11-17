@@ -63,6 +63,7 @@ if __name__ == '__main__':
 
     args.to_excel = True
 
+    args.number_of_days = 3
     args.sampling_time = 5
 
     activity_args_to_scenario(settings_file, args)

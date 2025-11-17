@@ -182,9 +182,9 @@ def extract_exercise_events(payload: Dict[str, Any], person_idx: int) -> List[Di
     return events
 
 
-def extract_insulin_from_csv(csv_path: str) -> Dict[str, Any]:
+def extract_insulin_from_csv(csv_path: str, person_idx: int) -> Dict[str, Any]:
     df = pd.read_csv(csv_path)
-    return {"magnitude": df.iloc[:, 0].tolist()}
+    return {"magnitude": df.iloc[:, person_idx].tolist()}
 
 
 def load_bg_df(xlsx_path: str, sheet_name: str = "Patient_0") -> pd.DataFrame:
@@ -212,6 +212,8 @@ def build_input_context_for_patient(base_dir: str, patient_id: str) -> Dict[str,
     bg_path = os.path.join(base_dir, "model_state_results.xlsx")
     insulin_csv_path = os.path.join(base_dir, "insulin_input.csv")
 
+    p_id = int(patient_id.split("_")[1])
+
     if not os.path.exists(simulation_path) or not os.path.exists(bg_path):
         raise FileNotFoundError(f"{patient_id}: missing simulation_settings.json or model_state_results.xlsx")
 
@@ -219,20 +221,22 @@ def build_input_context_for_patient(base_dir: str, patient_id: str) -> Dict[str,
         payload = json.load(f)
 
     input_context: Dict[str, Any] = {}
-    input_context["carb_events"] = extract_carb_events(payload, int(patient_id.split("_")[1]))
 
-    exercise_events = extract_exercise_events(payload, int(patient_id.split("_")[1]))
+    input_context["carb_events"] = extract_carb_events(payload, p_id)
+
+    exercise_events = extract_exercise_events(payload, p_id)
+
     if exercise_events:
         input_context["exercise_events"] = exercise_events
 
     if os.path.exists(insulin_csv_path):
-        input_context["insulin_events"] = extract_insulin_from_csv(insulin_csv_path)
+        input_context["insulin_events"] = extract_insulin_from_csv(insulin_csv_path, p_id)
     else:
         logging.warning("%s: insulin_input.csv not found; leaving empty list.", patient_id)
         input_context["insulin_events"] = []
 
     try:
-        bg_df = load_bg_df(bg_path, sheet_name="Patient_0")
+        bg_df = load_bg_df(bg_path, sheet_name=patient_id)
         input_context["bg_mgdl"] = bg_df["BG"].tolist()
     except Exception as e:
         logging.error("%s: failed to load BG sheet (%s)", patient_id, e)

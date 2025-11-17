@@ -106,8 +106,8 @@ if __name__ == '__main__':
     test_arguments = [
         '-pat', '0',
         '-d', '3',
-        # '-ns', '20',
-        '-ctrl', 'OpenAPS',
+        '-ns', '20',
+        '-ctrl', 'HCL0',
         # '--random_fault_intensity', '0.01',
         # # '-fault_type', 'max_basal', 'positive_spike',
         # '--random_scenario', 'meal_start_time',
@@ -115,7 +115,7 @@ if __name__ == '__main__':
         # '--faults_file', 'pymgipsim/faultsGeneration/faults_specification.csv',
         # '-h'
         # '--data_path', 'SimulationResults/Simulation 10_03_2025_14_31_05',
-        # '--qa',
+        '--qa',
         '-st', '5',
     ]
     main()
