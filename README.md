@@ -1,6 +1,6 @@
 # Overview
 
-This branch incorporated the OpenAPS controller, faults injection, random scenarios, and anomaly detection QA data generation modules into the closed-loop simulation testbed (Original Testbed: illinoistech-itm.github.io/py-mgipsim/) with the Extended Cambridge patient model running under a single scale (static body weight) setting 
+This branch incorporated the OpenAPS controller, faults injection, random meal and exercise scenarios, and anomaly detection QA data generation modules into the closed-loop simulation testbed (Original Testbed: illinoistech-itm.github.io/py-mgipsim/) with the Extended Cambridge patient model running under a single scale (static body weight) setting 
 
 ## Usage
 
@@ -9,6 +9,12 @@ The entire simulation pipeline is executed through the data_generation_main.py s
 For a full arguments list, run 
     
     python data_generation_main.py -h
+
+If run with OpenAPS controller, need to deploy following server based on installation instructions in its README.md:
+
+https://github.com/ImperialGlobalSingapore/oref0/tree/kexin 
+
+Then check to the kexin branch and run it.
 
 ### Basic Simulation Example
 To run a simple 3-day simulation for 1 patient using the OpenLoop controller with random state 402:
@@ -30,7 +36,7 @@ The default types are all possible faults.
 
 For example, to run a 30-day simulation for 20 virtual patient with a 1% data of a max_basal or positive_spike fault:
 
-    python data_generation_main.py -d 30 -ns 20 -ctrl OpenAPS --rfi 0.01 --ft max_basal positive_spike
+    python data_generation_main.py -d 30 -ns 20 -ctrl OpenAPS -rfi 0.01 -ft max_basal positive_spike
 
 Random faults injection with the following constraints:
 
@@ -69,27 +75,29 @@ A example file was put under:
 
 Run the simulation:    
 
-    python data_generation_main.py -d 30 -ns 20 -ctrl HCL0 --ff my_faults.csv
+    python data_generation_main.py -d 30 -ns 20 -ctrl HCL0 -ff my_faults.csv
 
 ### Random Scenario Examples
 
-Simulation with scenario randomness by indicating arguments random_scenario and random_scenario_methods, available choices as follows:
+Simulation with scenario randomness by indicating arguments random_scenario and random_scenario_methods, and random_scenario_intensity (0 to 1). available choices as follows:
 
 random_scenario: 
-meal_carb, meal_start_time, snack_carb, snack_start_time
-cycling_power, cycling_start_time, cycling_duration
-running_speed, running_start_time, running_duration
 
-random_scenario_methods 
-heavy: Increase 10-40% of magnitude or duration
-light: Decrease 10-40% of magnitude or duration
-early: 1-2 hour before original start_time
-delayed: 1-2 hour after original start_time
-skipped: Set 0 of magnitude
+meal_carb, meal_start_time, snack_carb, snack_start_time,
+cycling_power, cycling_start_time, cycling_duration,
+running_speed, running_start_time, running_duration,
+
+random_scenario_methods:
+
+- heavy: Increase 10-40% of magnitude or duration
+- light: Decrease 10-40% of magnitude or duration
+- early: 1-2 hour before original start_time
+- delayed: 1-2 hour after original start_time
+- skipped: Set 0 of magnitude
 
 This example runs a 30-day simulation introduces variability by randomly making meal start times earlier than planned.
 
-    python data_generation_main.py -d 30 -ns 1 -ctrl HCL0 --rc meal_start_time -rsm early
+    python data_generation_main.py -d 30 -ns 1 -ctrl HCL0 -rc meal_start_time -rsm early -rsi 0.1
 
 ### Anomaly detection QA data generation
 Based on simulated data or data loaded from a given simulation data path, accordingly QA pairs with context will be generated.
