@@ -22,16 +22,20 @@ class ORefZeroController:
     BASE_PROFILE = {
         "current_basal": 0.7,  # Current basal rate in U/h
         "sens": 50,  # Insulin Sensitivity Factor (ISF)
-        "dia": 6,  # Duration of Insulin Action in hours
+        "dia": 7,  # Duration of Insulin Action in hours
         "carb_ratio": 10,  # Carb Ratio (g/U)
-        "max_iob": 6,  # Maximum insulin on board allowed
-        "max_basal": 3.5,  # Maximum temporary basal rate in U/h
-        "max_daily_basal": 3.5,  # Maximum daily basal rate in units per day
-        "max_bg": 120,  # Upper target
-        "min_bg": 120,  # Lower target
+        "max_iob": 12,  # Maximum insulin on board allowed
+        "max_basal": 4,  # Maximum temporary basal rate in U/h
+        "max_daily_basal": 0.7,  # Maximum daily basal rate in units per day
+        "max_bg": 117,  # Upper target
+        "min_bg": 90,  # Lower target
         "maxCOB": 120,  # Maximum carbs on board
         "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 50}]},
-        "min_5m_carbimpact": 12.0,  # Minimum carb absorption rate
+        "min_5m_carbimpact": 8,  # Minimum carb absorption rate
+        "max_daily_safety_multiplier": 3,  # Safety multiplier vs max_daily_basal (oref0 default: 3)
+        "current_basal_safety_multiplier": 4,  # Safety multiplier vs current basal (oref0 default: 4)
+        "autosens_max": 1.2,  # Max autosens ratio (oref0 default: 1.2)
+        "autosens_min": 0.7,  # Min autosens ratio (oref0 default: 0.7)
         "type": "current",  # Profile type
     }
 
@@ -64,7 +68,11 @@ class ORefZeroController:
         self.meal_history = {}  # patientId -> list of meal entries
         self.bolus_history = {}  # patientId -> list of bolus entries
         self.pump_history = {}  # patientId -> list of pump events
-        self.collect_bolus = {}  # patientId -> accumulated bolus
+        self.pending_bolus_entries = (
+            {}
+        )  # patientId -> list of bolus entries waiting to be sent to oref0
+        self.last_insulin_cache = {}  # patientId -> last insulin recommendation (for early return optimization)
+        self.last_iob_cache = {}  # patientId -> last IOB value (for early return optimization)
 
         if default_profile:
             self.BASE_PROFILE.update(default_profile)
@@ -104,10 +112,42 @@ class ORefZeroController:
         except requests.exceptions.ConnectionError:
             raise Exception("Could not connect to OpenAPS server")
         except requests.exceptions.HTTPError as e:
-            pass
+            error_details = ""
+            if hasattr(e, "response") and e.response is not None:
+                error_details = f" - Status: {e.response.status_code}"
+                if hasattr(e.response, "text"):
+                    error_details += f", Response: {e.response.text}"
+            raise Exception(f"Server returned HTTP error{error_details}")
 
         except Exception as e:
             raise
+
+    def _check_and_correct_profile(self, profile: Dict) -> bool:
+        """
+        Check and correct patient profile parameters.
+
+        Args:
+            profile: Profile dictionary to validate and correct
+
+        Returns:
+            True if profile is valid (after corrections), False if invalid
+        """
+        # Make sure current_basal is set
+        if profile.get("current_basal") is None:
+            logger.error("Profile must include current_basal rate")
+            return False
+
+        # Make sure min_bg < max_bg
+        if profile["min_bg"] > profile["max_bg"]:
+            logger.error("Profile min_bg must be less than max_bg")
+            return False
+
+        # Auto-set isfProfile from sens (same sensitivity throughout the day)
+        profile["isfProfile"] = {
+            "sensitivities": [{"offset": 0, "sensitivity": profile["sens"]}]
+        }
+
+        return True
 
     def initialize_patient(
         self, patient_name: str, profile: Optional[Dict] = None
@@ -117,7 +157,13 @@ class ORefZeroController:
             return True
 
         patient_profile = self.default_profile.copy()
-        patient_profile.update(profile)
+        if profile:
+            patient_profile.update(profile)
+
+        # Validate and correct profile
+        if not self._check_and_correct_profile(patient_profile):
+            logger.error(f"Invalid profile for patient {patient_name}")
+            return False
 
         # Prepare initialization data
         init_data = {
@@ -140,7 +186,9 @@ class ORefZeroController:
             self.bolus_history[patient_name] = []
             self.pump_history[patient_name] = []
             self.last_glucose_time[patient_name] = None
-            self.collect_bolus[patient_name] = 0
+            self.pending_bolus_entries[patient_name] = []
+            self.last_insulin_cache[patient_name] = {"basal": 0.0, "bolus": 0.0}
+            self.last_iob_cache[patient_name] = 0.0
             return True
 
         except Exception as e:
@@ -186,7 +234,10 @@ class ORefZeroController:
         return utc_time.isoformat() + "Z"  # Append 'Z' to indicate
 
     def _prepare_new_data(
-        self, patient_name: str, glucose: float, meal: float, meal_bolus: float, timestamp: str
+        self,
+        patient_name: str,
+        glucose: float,
+        timestamp: str,
     ) -> Dict[str, Any]:
         """Prepare new data to send to the server"""
         new_data = {}
@@ -206,22 +257,30 @@ class ORefZeroController:
             self.glucose_history[patient_name].append(glucose_entry)
 
         # Add carb entry if we have a meal
-        if meal > 0:
+        if self.collect_meal > 0:
             carb_entry = {
                 "timestamp": timestamp,
-                "carbs": meal,
+                "carbs": self.collect_meal,
             }
             new_data["carbEntries"] = [carb_entry]
             self.meal_history[patient_name].append(carb_entry)
+            self.collect_meal = 0
 
-        # Add bolus entry if we have a meal bolus
-        if meal_bolus > 0:
-            bolus_entry = {
-                "timestamp": timestamp,
-                "bolus": meal_bolus,
-            }
-            new_data["bolusEntries"] = bolus_entry
-            self.bolus_history[patient_name].append(bolus_entry)
+        # Add all pending bolus entries (with their actual delivery timestamps)
+        if len(self.pending_bolus_entries[patient_name]) > 0:
+            new_data["bolusEntries"] = self.pending_bolus_entries[patient_name].copy()
+            self.bolus_history[patient_name].extend(
+                self.pending_bolus_entries[patient_name]
+            )
+            self.pending_bolus_entries[patient_name] = (
+                []
+            )  # Clear pending boluses after sending to oref0
+
+        # Add pump history entries (insulin deliveries from previous actions)
+        if len(self.pump_history[patient_name]) > 0:
+            new_data["pumpHistory"] = self.pump_history[patient_name].copy()
+            # Clear the pump history after sending
+            self.pump_history[patient_name] = []
 
         return new_data
 
@@ -258,14 +317,18 @@ class ORefZeroController:
         timestamp = self._convert_time_to_timestamp(time)
         previous_timestamp = self.last_glucose_time.get(patient_name)
 
-        # accumulate meal data and bolus data
+        # Accumulate meal data
         self.collect_meal += meal
 
-        # Get bolus from observation (default to 0 if not provided)
-        meal_bolus = getattr(observation, 'bolus', 0.0)
-        if patient_name not in self.collect_bolus:
-            self.collect_bolus[patient_name] = 0
-        self.collect_bolus[patient_name] += meal_bolus
+        # Record meal bolus with its actual delivery timestamp (if any)
+        # This is for oref0 IOB tracking only, not for returning to patient
+        meal_bolus = getattr(observation, "bolus", 0.0)
+        if meal_bolus > 0:
+            bolus_entry = {
+                "timestamp": timestamp,
+                "bolus": meal_bolus,
+            }
+            self.pending_bolus_entries[patient_name].append(bolus_entry)
 
         # if previous_timestamp is not None and timestamp difference < MINIMAL_TIMESTEP
         if previous_timestamp is not None and (
@@ -274,9 +337,9 @@ class ORefZeroController:
             + timedelta(minutes=self.MINIMAL_TIMESTEP)
         ):
             return {
-                "basal": self.last_insulin["basal"],
-                "bolus": self.last_insulin["bolus"],
-                "iob": self.last_iob,
+                "basal": self.last_insulin_cache[patient_name]["basal"],
+                "bolus": self.last_insulin_cache[patient_name]["bolus"],
+                "iob": self.last_iob_cache[patient_name],
             }
 
         # Extract glucose level
@@ -284,10 +347,10 @@ class ORefZeroController:
 
         # Prepare new data
         new_data = self._prepare_new_data(
-            patient_name, glucose_level, self.collect_meal, self.collect_bolus[patient_name], timestamp
+            patient_name,
+            glucose_level,
+            timestamp,
         )
-        self.collect_meal = 0  # Reset after sending
-        self.collect_bolus[patient_name] = 0  # Reset after sending
         if print_debug:
             print(new_data)
         # Prepare calculation request
@@ -324,10 +387,10 @@ class ORefZeroController:
         if "microbolus" in suggestion:
             bolus_amount += suggestion.get("microbolus", 0.0)
 
-        # Store the last glucose time
+        # Store the last glucose time and cache insulin values per patient
         self.last_glucose_time[patient_name] = timestamp
-        self.last_insulin = {"basal": basal_rate, "bolus": bolus_amount}
-        self.last_iob = iob_value
+        self.last_insulin_cache[patient_name] = {"basal": basal_rate, "bolus": bolus_amount}
+        self.last_iob_cache[patient_name] = iob_value
 
         return {
             "basal": basal_rate,

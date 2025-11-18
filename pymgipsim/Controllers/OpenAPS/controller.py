@@ -84,7 +84,9 @@ class Controller:
     def _init_planned_mode(self, scenario_instance: scenario):
         """Initialize controller for planned (proactive) meal bolus mode."""
         self.controller = ORefZeroController()
-        print("Using planned meal bolus (proactive meal announcements, following SAPT approach)")
+        print(
+            "Using planned meal bolus (proactive meal announcements, following SAPT approach)"
+        )
 
         if not self.controller.health_check():
             raise ConnectionError("Failed to connect to OpenAPS server")
@@ -101,7 +103,8 @@ class Controller:
             sampling_time=scenario_instance.settings.sampling_time,
             duration=np.ones_like(events.duration),
             start_time=events.start_time,
-            magnitude=scenario_instance.settings.sampling_time * np.asarray(events.magnitude),
+            magnitude=scenario_instance.settings.sampling_time
+            * np.asarray(events.magnitude),
         )
 
         model_parameters = T1DM.ExtHovorka.Parameters(
@@ -126,7 +129,9 @@ class Controller:
                 profile=profile,
             )
 
-    def _create_patient_profile(self, patient_idx: int, scenario_instance: scenario) -> dict:
+    def _create_patient_profile(
+        self, patient_idx: int, scenario_instance: scenario
+    ) -> dict:
         """Create patient profile dictionary from demographic info."""
         # Get basal rate from demographic info if available
         if hasattr(scenario_instance.patient.demographic_info, "basal"):
@@ -146,23 +151,22 @@ class Controller:
             carb_ratio = 10  # Default g/U
 
         if hasattr(self.demographic_info, "total_daily_basal"):
-            max_daily_basal = self.demographic_info.total_daily_basal[patient_idx]
+            max_daily_basal = (
+                self.demographic_info.total_daily_basal[patient_idx] / 24
+            )  # U/h
         else:
-            max_daily_basal = 36  # Default U/day
+            max_daily_basal = basal_rate
 
         return {
             "current_basal": basal_rate,
             "sens": isf,
-            "dia": 6,
+            "dia": 7,
             "carb_ratio": carb_ratio,
-            "max_iob": 6,
+            "max_iob": 12,
             "max_basal": max(3.5, basal_rate * 3),
             "max_daily_basal": max_daily_basal,
-            "max_bg": 140,
+            "max_bg": 117,
             "min_bg": 90,
-            "maxCOB": 180,
-            "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": isf}]},
-            "min_5m_carbimpact": 12.0,
             "type": "current",
         }
 
@@ -228,12 +232,12 @@ class Controller:
                     meal=sum_meals,
                     time=current_sim_time,
                 )
-                basal = action.get("basal", 0.0) * 60  # U/min * 60 = U/h
+                basal = action.get("basal", 0.0)  # U/min (from Oref0.py conversion)
                 bolus = action.get("bolus", 0.0)  # U (total units)
                 iob = action.get("iob", 0.0)  # U
 
                 insulin_rate = (
-                    UnitConversion.insulin.Uhr_to_mUmin(basal)
+                    UnitConversion.insulin.U_to_mU(basal)  # U/min -> mU/min
                     + UnitConversion.insulin.U_to_mU(bolus) / self.sampling_time
                 )  # mU/min
                 inputs[patient_idx, 3, sample] = insulin_rate
@@ -274,7 +278,8 @@ class Controller:
                 meal_bolus = sum_meals / carb_ratio  # U
 
             # Create observation for the controller
-            observation = CtrlObservation(CGM=glucose, bolus=meal_bolus)
+            # observation = CtrlObservation(CGM=glucose, bolus=meal_bolus) # send bolus to Oref0
+            observation = CtrlObservation(CGM=glucose, bolus=0)  #
 
             # Get insulin recommendation from server
             try:
@@ -286,7 +291,7 @@ class Controller:
                     meal=sum_meals,
                     time=current_sim_time,
                 )
-                basal = action.get("basal", 0.0) * 60  # U/min * 60 = U/h
+                basal = action.get("basal", 0.0)  # U/min (from Oref0.py conversion)
                 bolus = action.get("bolus", 0.0)  # U (total units)
 
                 # Add the meal bolus we calculated to ORef0's bolus
@@ -295,7 +300,7 @@ class Controller:
                 iob = action.get("iob", 0.0)  # U
 
                 insulin_rate = (
-                    UnitConversion.insulin.Uhr_to_mUmin(basal)
+                    UnitConversion.insulin.U_to_mU(basal)  # U/min -> mU/min
                     + UnitConversion.insulin.U_to_mU(bolus) / self.sampling_time
                 )  # mU/min
                 inputs[patient_idx, 3, sample] = insulin_rate
