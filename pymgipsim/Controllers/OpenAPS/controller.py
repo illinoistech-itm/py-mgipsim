@@ -271,7 +271,8 @@ class Controller:
                 meal_bolus = sum_meals / carb_ratio  # U
 
             # Create observation for the controller
-            observation = CtrlObservation(CGM=glucose, bolus=meal_bolus)
+            # observation = CtrlObservation(CGM=glucose, bolus=meal_bolus) # send bolus to Oref0
+            observation = CtrlObservation(CGM=glucose, bolus=0)  #
 
             # Get insulin recommendation from server
             try:
