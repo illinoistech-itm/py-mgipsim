@@ -71,6 +71,8 @@ class ORefZeroController:
         self.pending_bolus_entries = (
             {}
         )  # patientId -> list of bolus entries waiting to be sent to oref0
+        self.last_insulin_cache = {}  # patientId -> last insulin recommendation (for early return optimization)
+        self.last_iob_cache = {}  # patientId -> last IOB value (for early return optimization)
 
         if default_profile:
             self.BASE_PROFILE.update(default_profile)
@@ -185,6 +187,8 @@ class ORefZeroController:
             self.pump_history[patient_name] = []
             self.last_glucose_time[patient_name] = None
             self.pending_bolus_entries[patient_name] = []
+            self.last_insulin_cache[patient_name] = {"basal": 0.0, "bolus": 0.0}
+            self.last_iob_cache[patient_name] = 0.0
             return True
 
         except Exception as e:
@@ -333,9 +337,9 @@ class ORefZeroController:
             + timedelta(minutes=self.MINIMAL_TIMESTEP)
         ):
             return {
-                "basal": self.last_insulin["basal"],
-                "bolus": self.last_insulin["bolus"],
-                "iob": self.last_iob,
+                "basal": self.last_insulin_cache[patient_name]["basal"],
+                "bolus": self.last_insulin_cache[patient_name]["bolus"],
+                "iob": self.last_iob_cache[patient_name],
             }
 
         # Extract glucose level
@@ -383,10 +387,10 @@ class ORefZeroController:
         if "microbolus" in suggestion:
             bolus_amount += suggestion.get("microbolus", 0.0)
 
-        # Store the last glucose time
+        # Store the last glucose time and cache insulin values per patient
         self.last_glucose_time[patient_name] = timestamp
-        self.last_insulin = {"basal": basal_rate, "bolus": bolus_amount}
-        self.last_iob = iob_value
+        self.last_insulin_cache[patient_name] = {"basal": basal_rate, "bolus": bolus_amount}
+        self.last_iob_cache[patient_name] = iob_value
 
         return {
             "basal": basal_rate,
