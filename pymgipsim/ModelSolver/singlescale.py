@@ -49,7 +49,7 @@ class SolverBase(ABC):
             case Controllers.OpenAPS.controller.Controller.name:
                 self.controller = Controllers.OpenAPS.controller.Controller(
                     self.scenario_instance,
-                    meal_bolus_mode=MealBolusMode.ON_THE_GO,
+                    meal_bolus_mode=MealBolusMode.PLANNED,
                 )
                 self.model.inputs.uInsulin.sampled_signal[:, 0] = (
                     UnitConversion.insulin.Uhr_to_mUmin(
