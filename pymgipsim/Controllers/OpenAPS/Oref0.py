@@ -145,10 +145,6 @@ class ORefZeroController:
             "sensitivities": [{"offset": 0, "sensitivity": profile["sens"]}]
         }
 
-        # Auto-set max_daily_basal from current_basal (simglucose uses flat basal schedules)
-        # max_daily_basal should be the highest basal rate from the patient's schedule
-        profile["max_daily_basal"] = profile["current_basal"]
-
         return True
 
     def initialize_patient(
