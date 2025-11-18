@@ -64,7 +64,9 @@ class ORefZeroController:
         self.meal_history = {}  # patientId -> list of meal entries
         self.bolus_history = {}  # patientId -> list of bolus entries
         self.pump_history = {}  # patientId -> list of pump events
-        self.collect_bolus = {}  # patientId -> accumulated bolus
+        self.pending_bolus_entries = (
+            {}
+        )  # patientId -> list of bolus entries waiting to be sent to oref0
 
         if default_profile:
             self.BASE_PROFILE.update(default_profile)
@@ -104,7 +106,12 @@ class ORefZeroController:
         except requests.exceptions.ConnectionError:
             raise Exception("Could not connect to OpenAPS server")
         except requests.exceptions.HTTPError as e:
-            pass
+            error_details = ""
+            if hasattr(e, "response") and e.response is not None:
+                error_details = f" - Status: {e.response.status_code}"
+                if hasattr(e.response, "text"):
+                    error_details += f", Response: {e.response.text}"
+            raise Exception(f"Server returned HTTP error{error_details}")
 
         except Exception as e:
             raise
@@ -140,7 +147,7 @@ class ORefZeroController:
             self.bolus_history[patient_name] = []
             self.pump_history[patient_name] = []
             self.last_glucose_time[patient_name] = None
-            self.collect_bolus[patient_name] = 0
+            self.pending_bolus_entries[patient_name] = []
             return True
 
         except Exception as e:
@@ -186,7 +193,10 @@ class ORefZeroController:
         return utc_time.isoformat() + "Z"  # Append 'Z' to indicate
 
     def _prepare_new_data(
-        self, patient_name: str, glucose: float, meal: float, meal_bolus: float, timestamp: str
+        self,
+        patient_name: str,
+        glucose: float,
+        timestamp: str,
     ) -> Dict[str, Any]:
         """Prepare new data to send to the server"""
         new_data = {}
@@ -206,22 +216,30 @@ class ORefZeroController:
             self.glucose_history[patient_name].append(glucose_entry)
 
         # Add carb entry if we have a meal
-        if meal > 0:
+        if self.collect_meal > 0:
             carb_entry = {
                 "timestamp": timestamp,
-                "carbs": meal,
+                "carbs": self.collect_meal,
             }
             new_data["carbEntries"] = [carb_entry]
             self.meal_history[patient_name].append(carb_entry)
+            self.collect_meal = 0
 
-        # Add bolus entry if we have a meal bolus
-        if meal_bolus > 0:
-            bolus_entry = {
-                "timestamp": timestamp,
-                "bolus": meal_bolus,
-            }
-            new_data["bolusEntries"] = bolus_entry
-            self.bolus_history[patient_name].append(bolus_entry)
+        # Add all pending bolus entries (with their actual delivery timestamps)
+        if len(self.pending_bolus_entries[patient_name]) > 0:
+            new_data["bolusEntries"] = self.pending_bolus_entries[patient_name].copy()
+            self.bolus_history[patient_name].extend(
+                self.pending_bolus_entries[patient_name]
+            )
+            self.pending_bolus_entries[patient_name] = (
+                []
+            )  # Clear pending boluses after sending to oref0
+
+        # Add pump history entries (insulin deliveries from previous actions)
+        if len(self.pump_history[patient_name]) > 0:
+            new_data["pumpHistory"] = self.pump_history[patient_name].copy()
+            # Clear the pump history after sending
+            self.pump_history[patient_name] = []
 
         return new_data
 
@@ -258,14 +276,18 @@ class ORefZeroController:
         timestamp = self._convert_time_to_timestamp(time)
         previous_timestamp = self.last_glucose_time.get(patient_name)
 
-        # accumulate meal data and bolus data
+        # Accumulate meal data
         self.collect_meal += meal
 
-        # Get bolus from observation (default to 0 if not provided)
-        meal_bolus = getattr(observation, 'bolus', 0.0)
-        if patient_name not in self.collect_bolus:
-            self.collect_bolus[patient_name] = 0
-        self.collect_bolus[patient_name] += meal_bolus
+        # Record meal bolus with its actual delivery timestamp (if any)
+        # This is for oref0 IOB tracking only, not for returning to patient
+        meal_bolus = getattr(observation, "bolus", 0.0)
+        if meal_bolus > 0:
+            bolus_entry = {
+                "timestamp": timestamp,
+                "bolus": meal_bolus,
+            }
+            self.pending_bolus_entries[patient_name].append(bolus_entry)
 
         # if previous_timestamp is not None and timestamp difference < MINIMAL_TIMESTEP
         if previous_timestamp is not None and (
@@ -284,10 +306,10 @@ class ORefZeroController:
 
         # Prepare new data
         new_data = self._prepare_new_data(
-            patient_name, glucose_level, self.collect_meal, self.collect_bolus[patient_name], timestamp
+            patient_name,
+            glucose_level,
+            timestamp,
         )
-        self.collect_meal = 0  # Reset after sending
-        self.collect_bolus[patient_name] = 0  # Reset after sending
         if print_debug:
             print(new_data)
         # Prepare calculation request

@@ -228,12 +228,12 @@ class Controller:
                     meal=sum_meals,
                     time=current_sim_time,
                 )
-                basal = action.get("basal", 0.0) * 60  # U/min * 60 = U/h
+                basal = action.get("basal", 0.0)  # U/min (from Oref0.py conversion)
                 bolus = action.get("bolus", 0.0)  # U (total units)
                 iob = action.get("iob", 0.0)  # U
 
                 insulin_rate = (
-                    UnitConversion.insulin.Uhr_to_mUmin(basal)
+                    UnitConversion.insulin.U_to_mU(basal)  # U/min -> mU/min
                     + UnitConversion.insulin.U_to_mU(bolus) / self.sampling_time
                 )  # mU/min
                 inputs[patient_idx, 3, sample] = insulin_rate
@@ -286,7 +286,7 @@ class Controller:
                     meal=sum_meals,
                     time=current_sim_time,
                 )
-                basal = action.get("basal", 0.0) * 60  # U/min * 60 = U/h
+                basal = action.get("basal", 0.0)  # U/min (from Oref0.py conversion)
                 bolus = action.get("bolus", 0.0)  # U (total units)
 
                 # Add the meal bolus we calculated to ORef0's bolus
@@ -295,7 +295,7 @@ class Controller:
                 iob = action.get("iob", 0.0)  # U
 
                 insulin_rate = (
-                    UnitConversion.insulin.Uhr_to_mUmin(basal)
+                    UnitConversion.insulin.U_to_mU(basal)  # U/min -> mU/min
                     + UnitConversion.insulin.U_to_mU(bolus) / self.sampling_time
                 )  # mU/min
                 inputs[patient_idx, 3, sample] = insulin_rate
