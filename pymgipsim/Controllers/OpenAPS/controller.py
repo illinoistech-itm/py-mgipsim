@@ -160,9 +160,6 @@ class Controller:
             "max_daily_basal": max_daily_basal,
             "max_bg": 140,
             "min_bg": 90,
-            "maxCOB": 180,
-            "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": isf}]},
-            "min_5m_carbimpact": 12.0,
             "type": "current",
         }
 

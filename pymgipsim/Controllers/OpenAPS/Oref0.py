@@ -22,16 +22,20 @@ class ORefZeroController:
     BASE_PROFILE = {
         "current_basal": 0.7,  # Current basal rate in U/h
         "sens": 50,  # Insulin Sensitivity Factor (ISF)
-        "dia": 6,  # Duration of Insulin Action in hours
+        "dia": 7,  # Duration of Insulin Action in hours
         "carb_ratio": 10,  # Carb Ratio (g/U)
-        "max_iob": 6,  # Maximum insulin on board allowed
-        "max_basal": 3.5,  # Maximum temporary basal rate in U/h
-        "max_daily_basal": 3.5,  # Maximum daily basal rate in units per day
-        "max_bg": 120,  # Upper target
-        "min_bg": 120,  # Lower target
+        "max_iob": 12,  # Maximum insulin on board allowed
+        "max_basal": 4,  # Maximum temporary basal rate in U/h
+        "max_daily_basal": 0.7,  # Maximum daily basal rate in units per day
+        "max_bg": 117,  # Upper target
+        "min_bg": 90,  # Lower target
         "maxCOB": 120,  # Maximum carbs on board
         "isfProfile": {"sensitivities": [{"offset": 0, "sensitivity": 50}]},
-        "min_5m_carbimpact": 12.0,  # Minimum carb absorption rate
+        "min_5m_carbimpact": 8,  # Minimum carb absorption rate
+        "max_daily_safety_multiplier": 3,  # Safety multiplier vs max_daily_basal (oref0 default: 3)
+        "current_basal_safety_multiplier": 4,  # Safety multiplier vs current basal (oref0 default: 4)
+        "autosens_max": 1.2,  # Max autosens ratio (oref0 default: 1.2)
+        "autosens_min": 0.7,  # Min autosens ratio (oref0 default: 0.7)
         "type": "current",  # Profile type
     }
 
@@ -116,6 +120,37 @@ class ORefZeroController:
         except Exception as e:
             raise
 
+    def _check_and_correct_profile(self, profile: Dict) -> bool:
+        """
+        Check and correct patient profile parameters.
+
+        Args:
+            profile: Profile dictionary to validate and correct
+
+        Returns:
+            True if profile is valid (after corrections), False if invalid
+        """
+        # Make sure current_basal is set
+        if profile.get("current_basal") is None:
+            logger.error("Profile must include current_basal rate")
+            return False
+
+        # Make sure min_bg < max_bg
+        if profile["min_bg"] > profile["max_bg"]:
+            logger.error("Profile min_bg must be less than max_bg")
+            return False
+
+        # Auto-set isfProfile from sens (same sensitivity throughout the day)
+        profile["isfProfile"] = {
+            "sensitivities": [{"offset": 0, "sensitivity": profile["sens"]}]
+        }
+
+        # Auto-set max_daily_basal from current_basal (simglucose uses flat basal schedules)
+        # max_daily_basal should be the highest basal rate from the patient's schedule
+        profile["max_daily_basal"] = profile["current_basal"]
+
+        return True
+
     def initialize_patient(
         self, patient_name: str, profile: Optional[Dict] = None
     ) -> bool:
@@ -124,7 +159,13 @@ class ORefZeroController:
             return True
 
         patient_profile = self.default_profile.copy()
-        patient_profile.update(profile)
+        if profile:
+            patient_profile.update(profile)
+
+        # Validate and correct profile
+        if not self._check_and_correct_profile(patient_profile):
+            logger.error(f"Invalid profile for patient {patient_name}")
+            return False
 
         # Prepare initialization data
         init_data = {
