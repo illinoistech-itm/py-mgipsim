@@ -101,6 +101,15 @@ def main(argv=None):
         print("Generating anomaly detection question answering dataset...")
         generate_anomaly_detection_qa(args.data_path)
 
+    # for check simulation validation
+    # Generate plots for all patients
+    all_figures = []
+    for i in range(args.number_of_subjects):
+        args.plot_patient = i
+        print(f"Generating plots for Patient (index {i})")
+        figures = generate_plots_main(results_folder_path, args)
+        all_figures.append(figures)
+
 
 if __name__ == '__main__':
     test_arguments = [
