@@ -135,38 +135,54 @@ def extract_intervals_in_day(intervals, periods):
         List of dicts with {'start', 'end'} covering full night periods that overlap.
     """
 
-    selected_intervals = []
-    for i in intervals:
-        start_mod = i["start"] % 1440
-        end_mod = i["end"] % 1440
+    DAY = 1440
 
-        # Check overlap with each night window
-        for ns, ne in periods:
-            # Handle normal overlap
-            overlaps = start_mod < ne and end_mod > ns
-            # Handle intervals crossing midnight (e.g., 23:00–01:00)
-            crosses_midnight = start_mod > end_mod and (start_mod < ne or end_mod > ns)
+    # --- Step 1: Normalize periods into non-wrapping absolute ranges ---
+    # For each daily period (ns, ne):
+    #   - If ns < ne → simple interval [ns, ne]
+    #   - If ns > ne → split into [ns, DAY] and [0, ne]
+    normalized_periods = []
+    for ns, ne in periods:
+        if ns < ne:
+            normalized_periods.append((ns, ne))
+        else:  # wraps midnight
+            normalized_periods.append((ns, DAY))
+            normalized_periods.append((0, ne))
 
-            if overlaps or crosses_midnight:
-                # Truncate to full night window
-                new_start = i["start"] - start_mod + ns
-                new_end = i["start"] - start_mod + ne
+    selected = []
 
-                # Adjust if crosses midnight
-                if new_end < new_start:
-                    new_end += 1440
+    # --- Step 2: For each interval, map each normalized period to the interval's day(s) ---
+    for iv in intervals:
+        abs_start = iv["start"]
+        abs_end = iv["end"]
 
-                # Compute intersection between [i_start, i_end] and [night_start_abs, night_end_abs]
-                start_overlap = max(i["start"], new_start)
-                end_overlap = min(i["end"], new_end)
+        # It may span multiple days, so handle day offsets explicitly
+        # Compute the day index of the interval start
+        base_day = abs_start // DAY
 
-                selected_intervals.append({
-                    "start": start_overlap,
-                    "end": end_overlap
-                })
-                break  # no need to check other non-overlapping periods in a day
+        # We will check period windows for both the start day and possibly the next day
+        # because intervals may span midnight.
+        candidate_days = {base_day, base_day - 1, base_day + 1}
 
-    return selected_intervals
+        for day in candidate_days:
+            day_offset = day * DAY
+
+            for ps, pe in normalized_periods:
+                # Map the period into absolute time on this day
+                p_start_abs = day_offset + ps
+                p_end_abs = day_offset + pe
+
+                # --- Step 3: Compute intersection ---
+                inter_start = max(abs_start, p_start_abs)
+                inter_end = min(abs_end, p_end_abs)
+
+                if inter_start < inter_end:
+                    selected.append({
+                        "start": inter_start,
+                        "end": inter_end
+                    })
+
+    return selected
 
 
 def extract_hypoglycemia_intervals(df, start_idx=None, end_idx=None, nocturnal=False, min_duration=None):
@@ -311,13 +327,13 @@ def extract_spike_intervals_ad9(df):
 def extract_high_readings_intervals_ad10(df):
     """
     ad_10: Did my CGM report sudden high readings that quickly normalized without insulin?
-    answer_generation_rule: Intervals with faults_label == "positive_spike"
+    answer_generation_rule: Intervals with faults_label == "positive_spike" or "negative_spike"
     answer_instruction: Return a list of time intervals where the blood glucose readings exhibit sudden and sharp increases or decreases of approximately 60 mg/dL or more compared to the previous value.
     answer_type: list of {"start": int, "end": int}
     metric: Affinity F-score
     """
     # df = df.iloc[:-1]
-    return get_intervals_by_label(df, ["positive_spike"])
+    return get_intervals_by_label(df, ["positive_spike", "negative_spike"])
 
 def extract_last_week_drift_intervals_ad11(df):
     """
