@@ -27,8 +27,6 @@ import numpy as np
 np.random.seed(DEFAULT_RANDOM_SEED)
 
 
-
-
 def get_metrics(model):
 	metrics = []
 	analyzer = Agata()
@@ -41,7 +39,7 @@ def get_metrics(model):
 		metrics.append(analyzer.analyze_glucose_profile(pd.DataFrame({'t':pd.to_datetime(model.time.as_datetime).tz_localize(None),'glucose':glucose})))
 	return metrics
 
-def generate_results_main(scenario_instance, args, results_folder_path):
+def generate_results_main(scenario_instance, args, results_folder_path, faults_array=None):
     
 	if not args['no_print']:
 		print(f">>>>> Generating Model Results")
@@ -63,10 +61,10 @@ def generate_results_main(scenario_instance, args, results_folder_path):
 			with open(os.path.join(results_folder_path, "multiscale_model.pkl"), 'wb') as f:
 				pickle.dump(cohort.model_solver.multiscale_model, f)
 
-
 		case 'SingleScaleSolver':
+			_ , faults_label = cohort.model_solver.do_simulation(no_progress_bar = args['no_progress_bar'], faults_array=faults_array)
 
-			cohort.model_solver.do_simulation(no_progress_bar = args['no_progress_bar'])
+			cohort.model_solver.model.faults_label = np.array(faults_label)
 
 			model = cohort.model_solver.model
 
@@ -82,13 +80,27 @@ def generate_results_main(scenario_instance, args, results_folder_path):
 			# list [states]
 			state_units = cohort.model_solver.model.states.state_units
 
+			# Save insulin input
+			insulin_array = model.inputs.as_array[:, 3, :]
+			df_insulin = pd.DataFrame(insulin_array.T)
+
+			insulin_path = os.path.join(results_folder_path, "insulin_input.csv")
+			df_insulin.to_csv(insulin_path, index=False)
+
+			# Save IOB
+			iob_array = model.inputs.as_array[:, 5, :]
+			df_iob = pd.DataFrame(iob_array.T)
+
+			iob_path = os.path.join(results_folder_path, "iob.csv")
+			df_iob.to_csv(iob_path, index=False)
+
 			if args['to_excel']:
 				if not args['no_print']:
 					print(">>>>> Formatting and Saving Results")
 				with pandas.ExcelWriter(os.path.join(results_folder_path, "model_state_results.xlsx")) as writer:
-					save_to_xls(state_results, state_names, state_units, writer, args["no_progress_bar"])
+					save_to_xls(state_results, state_names, state_units, writer, args["no_progress_bar"], faults_label)
 
-	return cohort, None#get_metrics(cohort.singlescale_model)
+	return cohort #None#get_metrics(cohort.singlescale_model)
 
 if __name__ == '__main__':
 

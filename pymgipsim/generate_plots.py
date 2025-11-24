@@ -6,12 +6,13 @@ from pymgipsim.Utilities.units_conversions_constants import UnitConversion
 import pymgipsim.VirtualPatient.Models as Models
 import os
 
+
 """ 
 #######################################################################################################################
 Model States
 #######################################################################################################################
 """
-def _generate_plot_subject(results_directory, **kwargs):
+def _generate_plot_subject(results_directory, faults_label=None, **kwargs):
     """
     Generate and save a detailed input-output plot for a single subject.
 
@@ -32,7 +33,7 @@ def _generate_plot_subject(results_directory, **kwargs):
 
     patient = kwargs['plot_patient']
 
-    fig = plot_subject_response(loaded_model, loaded_scenario, patient)
+    fig = plot_subject_response(loaded_model, loaded_scenario, patient, faults_label=faults_label)
     fig.savefig(os.path.join(results_directory, "figures", "subject_" + fig.axes[0].get_title() + ".png"), bbox_inches='tight')
 
     return fig
@@ -235,7 +236,7 @@ Main
 #######################################################################################################################
 """
 
-def generate_plots_main(results_folder_path, args):
+def generate_plots_main(results_folder_path, args, faults_label=None):
 
     if not args.no_print:
         print(f">>>>> Generating Plots")
@@ -261,7 +262,7 @@ def generate_plots_main(results_folder_path, args):
             plot_list.remove(bw_fig)
 
     if args.plot_patient is not None:
-        subject_fig = _generate_plot_subject(results_folder_path, **vars(args))
+        subject_fig = _generate_plot_subject(results_folder_path, faults_label, **vars(args))
         plot_list.append(subject_fig)
 
     if not args.plot_blood_glucose and not args.plot_all:

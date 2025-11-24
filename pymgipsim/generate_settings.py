@@ -22,6 +22,9 @@ def generate_simulation_settings_main(scenario_instance: scenario, args: argpars
     end_time = Timestamp()
     end_time.as_unix = args.number_of_days * 24 * 60
 
+    scenario_instance.controller.name = args.controller_name
+    print("Current controller name: %s" % scenario_instance.controller.name)
+
     scenario_instance.settings.sampling_time = args.sampling_time
     scenario_instance.settings.start_time = 0
     scenario_instance.settings.end_time = end_time.as_unix

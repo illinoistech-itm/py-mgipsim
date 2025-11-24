@@ -14,14 +14,24 @@ def plot_hovorka():
     options = st.multiselect(
         "Select patients",
         patient_list,default=patient_list[0])
+
+    # Build available variables list - IOB only available for ExtHovorka + OpenAPS
+    available_vars = ["Blood glucose","Meals","Insulin","Heart rate"]
+    scenario = st.session_state.simulated_scenario
+    model = st.session_state.model
+    if (model is not None and
+        model.name == T1DM.ExtHovorka.Model.name and
+        scenario.controller.name == OpenAPS.controller.Controller.name):
+        available_vars.insert(3, "IOB")  # Insert IOB after Insulin
+
     variables = st.multiselect(
         "Select variables",
-        ("Blood glucose","Meals","Insulin","Heart rate"),default="Blood glucose")
+        available_vars,default="Blood glucose")
     if st.session_state.model is not None:
         cho_color = np.asarray([0.259, 0.125, 0.329])*255
         insulin_color =  np.asarray([0, 0.639, 0.224])*255
+        iob_color = np.asarray([0.2, 0.4, 0.6])*255  # Blue color for IOB
         heart_rate_color = np.asarray([1, 0.498, 0.545, 0.25/255])*255  # [1, 0.325, 0.392]
-        scenario = st.session_state.simulated_scenario
 
         model = st.session_state.model
         p = plotting.figure(title="T1DM cohort results.", x_axis_label='x', y_axis_label='y')
@@ -64,6 +74,17 @@ def plot_hovorka():
                                         y2=insulin_arr,color=RGB(*insulin_color))
                 except:
                     pass
+
+            # Plot IOB (only for ExtHovorka with OpenAPS)
+            if "IOB" in variables:
+                try:
+                    if (model.name == T1DM.ExtHovorka.Model.name and
+                        scenario.controller.name == OpenAPS.controller.Controller.name):
+                        iob_arr = model.inputs.as_array[patientidx, 5, :]  # IOB is at index 5
+                        p.line(time_axis, iob_arr, legend_label="IOB [U]", line_width=2, color=RGB(*iob_color))
+                except:
+                    pass
+
             try:
                 if "Heart rate" in variables:
                         hr_times = scenario.inputs.heart_rate.start_time[patientidx]
