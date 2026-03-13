@@ -9,6 +9,8 @@ from pymgipsim.Plotting.parser import generate_plot_parser, generate_plot_parser
 from pymgipsim.Utilities.parser import generate_load_parser
 from pymgipsim.Controllers.parser import generate_controller_settings_parser
 
+from pymgipsim.faultsGeneration.parser import generate_faults_parser
+
 """
 #####################
 Directions
@@ -51,7 +53,8 @@ def generate_parser_cli():
 								generate_virtual_subjects_parser(add_help = False),
 								generate_input_parser(add_help = False),
 								generate_results_parser(add_help = False),
-								generate_plot_parser(add_help = False)
+								generate_plot_parser(add_help = False),
+					 			generate_faults_parser(add_help=False)
 								]
 	parser = argparse.ArgumentParser(prog = initial_directions, parents = parent_parser, formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 

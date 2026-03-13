@@ -6,10 +6,13 @@ from dataclasses import asdict
 import pandas
 import tqdm
 
-def save_to_xls(state_results, state_names, state_units, destination, no_progress_bar):
+
+def save_to_xls(state_results, state_names, state_units, destination, no_progress_bar, faults_label):
     for subject_index in tqdm.tqdm(range(state_results.shape[0]), disable=no_progress_bar):
         df = pandas.DataFrame(state_results[subject_index].T,
                               columns=[f"{i} ({j})" for i, j in zip(state_names, state_units)])
+
+        df['faults_label'] = faults_label
 
         df.to_excel(destination, sheet_name=f'Patient_{subject_index}', engine='xlsxwriter')
 

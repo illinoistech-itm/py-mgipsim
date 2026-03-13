@@ -4,12 +4,22 @@ import calendar as cal
 
 class Timestamp:
 
-    def __init__(self):
+    def __init__(self, custom_epoch_str: str = None):
         self.DATETIME_FORMAT: str = '%d-%m-%Y %H:%M:%S'
+        self._unix_offset_minutes = 0
+        if custom_epoch_str:
+            try:
+                # Calculate the offset of the custom epoch from the true Unix epoch (in minutes)
+                custom_epoch_dt = datetime.datetime.strptime(custom_epoch_str, self.DATETIME_FORMAT)
+                # Use timegm for a UTC-based timestamp
+                self._unix_offset_minutes = cal.timegm(custom_epoch_dt.timetuple()) / 60.0
+            except ValueError:
+                raise ValueError(f"Custom epoch format is incorrect, should be {self.DATETIME_FORMAT}")
+
 
     @property
     def as_unix(self):
-        return self._unix
+        return self._unix - self._unix_offset_minutes
 
     @as_unix.setter
     def as_unix(self, timestamp):
