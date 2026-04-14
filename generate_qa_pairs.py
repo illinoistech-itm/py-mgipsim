@@ -33,6 +33,7 @@ def generate_questions_and_answers(patient_data):
     time_in_range_percentage = (sum(in_range) / len(bg_values)) * 100  
 
     above_range = [bg > 180 for bg in bg_values]
+    print(sum(above_range))
     time_above_range_minutes = sum(above_range) * 5
     time_above_range_hours = time_above_range_minutes / 60
     time_above_range_percentage = (sum(above_range) / len(bg_values)) * 100
@@ -217,7 +218,7 @@ def generate_questions_and_answers(patient_data):
                     "peak_time": peak_time_str,
                     "peak_time_minutes": peak_time,  # Add timestamp version
                     "time_to_baseline_min": time_to_baseline,
-                    "rise_rate_per_min": round(rise_rate, 2),
+                    "rise_rate_per_min": round(rise_rate, 1),
                     "spike": round((peak - baseline),1),
                 }
 
@@ -253,8 +254,8 @@ def generate_questions_and_answers(patient_data):
         max_during = np.max(during_bg) 
         mean_during = np.mean(during_bg)
 
-        # Post-exercise window 90 mins
-        post_window_len = min(180 // 5, len(bg_values) - end_index - 1)
+        # Post-exercise window 2-hour
+        post_window_len = min(120 // 5, len(bg_values) - end_index - 1)
         post_bg = bg_values[end_index + 1: end_index + post_window_len + 1]
         post_peak = np.max(post_bg)
         post_nadir = np.min(post_bg)
@@ -323,7 +324,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "What was the highest blood glucose level recorded?",
         "answer": round(max_glucose, 1),
         "answer_generation_rule": "Find the maximum value in the blood glucose array.",
-        "answer_instruction": "Identify the highest blood glucose value and report it as a float rounded to one decimal place",
+        "answer_instruction": "Scan all glucose readings to identify the maximum value. Report it as a float rounded to one decimal place.",
         "answer_type": "float",
         "metric": "MAE", 
         "example_answer": 130.0
@@ -333,7 +334,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "What was the lowest blood glucose level recorded?",
         "answer": round(min_glucose, 1),
         "answer_generation_rule": "Find the minimum value in the blood glucose array.",
-        "answer_instruction": "Identify the lowest blood glucose value and report it as a float rounded to one decimal place",
+        "answer_instruction": "Scan all glucose readings to identify the minimum value. Report it as a float rounded to one decimal place",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 50.0
@@ -343,7 +344,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "When did the patient experience their highest blood glucose peak?",
         "answer": max_glucose_time_minutes,
         "answer_generation_rule": "Find the index of the maximum glucose value and convert to time in minutes.",
-        "answer_instruction": "Return the time of the highest glucose reading as minutes from start of monitoring period.",
+        "answer_instruction": "Scan all glucose readings to identify the maximum value. Locate the index of its first occurrence and multiply by 5 to convert to minutes, and report the corresponding minutes.",
         "answer_type": "int",
         "metric": "MAE",
         "example_answer": 860
@@ -353,7 +354,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "How many hours did the patient spend in the target range (70-180 mg/dL)?",
         "answer": round(time_in_range_hours, 1),
         "answer_generation_rule": "Count minutes where glucose values are between 70-180 mg/dL, then convert to hours.",
-        "answer_instruction": "Report the total hours spent with glucose in the 70–180 mg/dL range, rounded to one decimal place",
+        "answer_instruction": "Count the number of glucose readings between 70 and 180 mg/dL (inclusive), multiply by 5 to get minutes, then convert to hours and round to one decimal.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 5.5
@@ -363,7 +364,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "How many hours did the patient spend above the target range (> 180 mg/dL)?",
         "answer": round(time_above_range_hours, 1),
         "answer_generation_rule": "Count minutes where glucose values are above 180 mg/dL (do not include 180), then convert to hours.",
-        "answer_instruction": "Report the total hours spent with glucose above 180 mg/dL (do not include 180), rounded to one decimal place",
+        "answer_instruction": "Identify all glucose readings strictly greater than 180 mg/dL (exclude 180), count the number of such readings, multiply by 5 to convert the count to minutes, then divide by 60 to convert to hours and round to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 5.5
@@ -373,7 +374,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "How many hours did the patient spend below the target range (< 70 mg/dL)?",
         "answer": round(time_below_range_hours, 1),
         "answer_generation_rule": "Count minutes where glucose values are below 70 mg/dL (not including 70), then convert to hours.",
-        "answer_instruction": "Report the total hours spent with glucose below 70 mg/dL (not including 70), rounded to one decimal place",
+        "answer_instruction": "Identify all glucose readings strictly less than 70 mg/dL (exclude 70), count the number of such readings, multiply by 5 to convert the count to minutes, then divide by 60 to convert to hours and round to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 5.5
@@ -383,7 +384,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "How many hypoglycemic events (BG < 70 mg/dL) did the patient experience?",
         "answer": hypo_events,
         "answer_generation_rule": "Count the total number of blood glucose readings that are below 70 mg/dL (not including 70). Return the count as an integer.",
-        "answer_instruction": "Count the total number of blood glucose readings that are below 70 mg/dL (not including 70). Return the count as an integer.",
+        "answer_instruction": "Identify all glucose readings strictly less than 70 mg/dL (exclude 70), count the total number of such readings, and return this count as an integer.",
         "answer_type": "int",
         "metric": "MAE",
         "example_answer": 3
@@ -391,9 +392,9 @@ def generate_questions_and_answers(patient_data):
 
     questions_and_answers.append({
         "question_text": "How many hyperglycemic events (BG > 180 mg/dL) did the patient experience?",
-        "answer": hyper_events,
+        "answer": sum(above_range),
         "answer_generation_rule": "Count the total number of blood glucose readings that are above 180 mg/dL (not including 180). Return the count as an integer.",
-        "answer_instruction": "Count the total number of blood glucose readings that are above 180 mg/dL (not including 180). Return the count as an integer.",
+        "answer_instruction": "Identify all glucose readings strictly greater than 180 mg/dL (exclude 180), count the total number of such readings, and return this count as an integer.",
         "answer_type": "int",
         "metric": "MAE",
         "example_answer": 3
@@ -413,7 +414,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "What's the time-in-range percentage for this patient?",
         "answer": round(time_in_range_percentage, 1),
         "answer_generation_rule": "Divide time in range (70-180 mg/dL) by total time, multiply by 100.",
-        "answer_instruction": "Return the percentage of time spent in 70–180 mg/dL range",
+        "answer_instruction": "Calculate the proportion of glucose readings between 70 and 180 mg/dL (inclusive), multiply by 100 to get percentage, and round to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 36.0
@@ -423,7 +424,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "What's the time-above-range percentage for this patient?",
         "answer": round(time_above_range_percentage, 1),
         "answer_generation_rule": "Divide time above range (> 180 mg/dL not including 180) by total time, multiply by 100.",
-        "answer_instruction": "Return the percentage of time above 180 mg/dL (not including 180)",
+        "answer_instruction": "Calculate the proportion of glucose readings strictly greater than 180 mg/dL (exclude 180) relative to the total number of readings, multiply by 100 to obtain the percentage, and round to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 38.0
@@ -433,7 +434,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "What's the time-below-range percentage for this patient?",
         "answer": round(time_below_range_percentage, 1),
         "answer_generation_rule": "Divide time below range (< 70 mg/dL not including 70) by total time, multiply by 100.",
-        "answer_instruction": "Return the percentage of time below 70 mg/dL (not including 70), rounded to one decimal place.",
+        "answer_instruction": "Calculate the proportion of glucose readings strictly less than 70 mg/dL (exclude 70) relative to the total number of readings, multiply by 100 to obtain the percentage, and round to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 40.0
@@ -443,7 +444,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "Did the patient experience any rapid glucose fluctuations (>2 mg/dL/min)?",
         "answer": "Yes" if has_rapid_fluctuations else "No",
         "answer_generation_rule": "Calculate rate of change between consecutive readings, check if any exceed 2 mg/dL/min.",
-        "answer_instruction": "Return 'Yes' if any glucose change exceeds 2 mg/dL/min, otherwise return 'No'.",
+        "answer_instruction": "For each pair of consecutive glucose readings, compute the rate of change by subtracting the earlier value from the later value and dividing by the time interval in minutes between the readings, take the absolute value of each rate, check whether any rate exceeds 2 mg/dL/min, and return 'Yes' if at least one does, otherwise return 'No'.",
         "answer_type": "categorical",
         "metric": "Accuracy",
         "example_answer": "Yes"
@@ -495,9 +496,9 @@ def generate_questions_and_answers(patient_data):
     avg_afternoon_sd = np.mean(afternoon_sds)
 
     if avg_morning_sd > avg_afternoon_sd:
-        higher_period = "mornings"
+        higher_period = "morning"
     elif avg_afternoon_sd > avg_morning_sd:
-        higher_period = "afternoons"
+        higher_period = "afternoon"
     else:
         higher_period = "equal in both"
 
@@ -510,7 +511,7 @@ def generate_questions_and_answers(patient_data):
     if avg_cv_weekdays > avg_cv_weekends:
         higher_weekdays_weekends = "weekdays"
     elif avg_cv_weekdays < avg_cv_weekends:
-        higher_weekdays_weekends = "weekends"
+        higher_weekdays_weekends = "weekend"
     else:
         higher_weekdays_weekends = "equal in both"
 
@@ -518,7 +519,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "What are the days where glucose are consistently stable?",
         "answer": stable_days,
         "answer_generation_rule": "Return a list of day indices (1-based) where glucose coefficient of variation is lower than 36.",
-        "answer_instruction": "Return a list of day numbers (1-based indexing) where the coefficient of variation is below 36. Format as a Python list, e.g., [1, 3, 5].",
+        "answer_instruction": "For each day, calculate the coefficient of variation by dividing the standard deviation of that day’s glucose values by the mean glucose for that day and multiplying by 100, identify all days where this value is less than 36, and return their day indices using 1-based numbering as a list, e.g., [1, 3, 5].",
         "answer_type": "list",
         "metric": "F1",
         "example_answer": [1, 3, 15, 27]
@@ -528,7 +529,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "On which day was the patient's glucose most variable?",
         "answer": most_variable_day,
         "answer_generation_rule": "Return the day index (1-based) with the highest coefficient of variation on that day.",
-        "answer_instruction": "Return the day number (1-based indexing) with the highest glucose variability as an integer.",
+        "answer_instruction": "For each day, calculate the coefficient of variation by dividing the standard deviation of that day’s glucose values by the mean glucose for that day and multiplying by 100, compare these daily values across all days, and return the 1-based day index of the day with the highest coefficient of variation.",
         "answer_type": "int",
         "metric": "Accuracy",
         "example_answer": 4
@@ -538,7 +539,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "On which day was the patient's glucose most stable?",
         "answer": most_stable_day,
         "answer_generation_rule": "Return the day index (1-based) with the lowest coefficient of variation on that day.",
-        "answer_instruction": "Return the day number (1-based indexing) with the lowest glucose variability as an integer.",
+        "answer_instruction": "For each day, calculate the coefficient of variation by dividing the standard deviation of that day’s glucose values by the mean glucose for that day and multiplying by 100, compare these daily values across all days, and return the 1-based day index of the day with the lowest coefficient of variation.",
         "answer_type": "int", 
         "metric": "Accuracy",
         "example_answer": 2
@@ -549,7 +550,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "Was glucose variability higher in the mornings or afternoons?",
         "answer": higher_period,
         "answer_generation_rule": "Calculate standard deviations of glucose values for 6am–12pm and 12pm–6pm periods across all days, and compare the averages.",
-        "answer_instruction": "Select one of the following options based on which period has higher glucose variability: 'morning', 'afternoon', or 'equal in both'.",
+        "answer_instruction": "For each day, separate glucose readings into the 6am–12pm period and the 12pm–6pm period, calculate the standard deviation of glucose values for each period on each day, compute the average standard deviation across all days for each time period, and compare the two averages to determine which period shows greater glucose variability. Select one of the following options based on which period has higher glucose variability: 'morning', 'afternoon', or 'equal in both'.",
         "answer_type": "categorical",
         "metric": "Accuracy",
         "example_answer": "morning"
@@ -582,7 +583,7 @@ def generate_questions_and_answers(patient_data):
             'Peak_time': meal_responses[day_key]['breakfast']['peak_time_minutes']
         },
         "answer_generation_rule": "Compare baseline glucose at meal time to maximum value in post-meal window (3 hours) on {day_name}.",
-        "answer_instruction": f"Return a dictionary containing the baseline glucose value (the glucose value immediately before the meal), the peak glucose value, and the time of the peak (in minutes from the start) within the 3-hour post-meal window on {day_name}. Use the keys 'Baseline', 'Peak', and 'Peak_time'. ",
+        "answer_instruction": f"Return a dictionary containing the baseline glucose value (the glucose value immediately before the meal), the peak glucose value, and the time of the peak (in minutes from the start) within the 3-hour post-meal window on {day_name}. Use the keys 'Baseline', 'Peak', and 'Peak_time'.",
         "answer_type": "dict",
         "metric": "{'Baseline': 'MAE', 'Peak': 'MAE', 'Peak_time': 'MAE'}",
         "example_answer": {'Baseline': 95.0, 'Peak': 160.0, 'Peak_time': 525},
@@ -599,7 +600,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"What was the peak glucose level after lunch on {day_name}?",
         "answer": round(meal_responses[day_key]['lunch']['peak'], 1),
         "answer_generation_rule": f"Find maximum glucose value in the post-lunch window (3 hours) on {day_name}.",
-        "answer_instruction": f"Return the highest glucose value in the post-lunch window (3 hours) on {day_name} as a float with one decimal.",
+        "answer_instruction": f"Identify the data corresponding to {day_name}, locate the lunch time for that day, select all glucose readings within the 3-hour window following lunch, find the maximum glucose value among those readings, and return it as a float rounded to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 165.0
@@ -616,7 +617,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"How long did it take for glucose levels to return to baseline after dinner on {day_name}?",
         "answer": meal_responses[day_key]['dinner']['time_to_baseline_min'],
         "answer_generation_rule": f"Find first time after peak when glucose returns to within 10% of pre-meal baseline on {day_name}, and calculate how long it took in minutes.",
-        "answer_instruction": f"On {day_name}, after dinner, find the first time following the post-meal peak within the 3-hour post-meal window when glucose returns to within 10% of the pre-meal baseline (the glucose value immediately before the meal). Report the duration in minutes. If glucose does not return within this range during the 3-hour window, return None.",
+        "answer_instruction": f"Identify {day_name} and locate the dinner time, record the baseline glucose as the value immediately before dinner, select all glucose readings within the 3-hour post-dinner window, find the peak glucose value and its timestamp within this window, then examine subsequent readings after the peak to find the first time point where glucose falls within ±10% of the baseline value, compute the time difference in minutes between the meal time (or peak time if specified) and this return time, and return this duration; if no such point exists within the 3-hour window, return None.",
         "answer_type": "int",
         "metric": "MAE",
         "example_answer": 90
@@ -632,7 +633,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"Which meal caused the highest glucose spike on {day_name}?",
         "answer": meal_responses[day_key]['max_spike_meal'],
         "answer_generation_rule": f"Compare spike (peak minus baseline) values for all meals in post-meal window (3 hours) to find largest increase on {day_name}.",
-        "answer_instruction": f"Return the meal name, 'breakfast', 'lunch', or 'dinner' for which caused the highest glucose spike (peak minus baseline) in post-meal window (3 hours) on {day_name}",
+        "answer_instruction": f"Identify {day_name} and locate the times of breakfast, lunch, and dinner, for each meal record the baseline glucose as the value immediately before the meal, select glucose readings within the 3-hour post-meal window, compute the spike as the difference between the maximum glucose value in the window and the baseline, compare the spikes across the three meals, and return the meal name ('breakfast', 'lunch', or 'dinner') corresponding to the largest spike.",
         "answer_type": "categorical",
         "metric": "Accuracy",
         "example_answer": "lunch"
@@ -649,7 +650,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"What was the glucose rise rate after the morning snack on {day_name}?",
         "answer": meal_responses[day_key]['morning_snack']['rise_rate_per_min'],
         "answer_generation_rule": f"Calculate rate of increase from baseline to 30-minute post-meal glucose on {day_name}.",
-        "answer_instruction": f"Return the rate of increase per minute from baseline (immediately before morning snack) to 30-minute post-meal glucose after the morning snack on {day_name}, rounded to two decimal places'.",
+        "answer_instruction": f"Identify {day_name} and locate the morning snack time, record the baseline glucose as the value immediately before the snack, find the glucose value at 30 minutes after the snack, compute the rate of increase as (glucose at 30 minutes minus baseline) divided by 30 minutes, and return the result rounded to one decimal places.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 1.45
@@ -685,7 +686,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"What was the peak glucose level after lunch on {day_name}?",
         "answer": round(meal_responses[day_key]['lunch']['peak'], 1),
         "answer_generation_rule": f"Find maximum glucose value in the post-lunch window (3 hours) on {day_name}.",
-        "answer_instruction": f"Return the highest glucose value in the post-lunch window (3 hours) on {day_name} as a float with one decimal.",
+        "answer_instruction": f"Identify {day_name} and locate the lunch time, select all glucose readings within the 3-hour post-lunch window, find the maximum glucose value among those readings, and return it as a float rounded to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 165.0
@@ -702,7 +703,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"Which meal caused the highest glucose spike on {day_name}?",
         "answer": meal_responses[day_key]['max_spike_meal'],
         "answer_generation_rule": f"Compare 'spike' (peak - baseline) values for breakfast, lunch, and dinner in post-meal window (3 hours) on {day_name}. Select the meal with the highest spike.",
-        "answer_instruction": f"On {day_name}, identify the meal with the highest glucose spike in the 3-hour post-meal window. The spike is defined as the difference between the peak glucose level and the baseline (the glucose value immediately before the meal). Return the meal name: 'breakfast', 'lunch', or 'dinner'.",
+        "answer_instruction": f"Identify {day_name} and locate breakfast, lunch, and dinner times, for each meal record the baseline glucose as the value immediately before the meal, select glucose readings within the 3-hour post-meal window, compute the spike as the difference between the maximum glucose value in the window and the baseline, compare the spikes across the three meals, and return the meal name ('breakfast', 'lunch', or 'dinner') corresponding to the largest spike.",
         "answer_type": "categorical",
         "metric": "Accuracy",
         "example_answer": "lunch"
@@ -722,7 +723,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"What was the peak glucose level during exercise on {day_name}?",
         "answer": round(exercise_responses[day_key]['max_during'], 1),
         "answer_generation_rule": f"Find the maximum glucose level during the exercise period on {day_name}.",
-        "answer_instruction": f"Return the highest glucose value during the exercise session on {day_name}, as a float with one decimal.",
+        "answer_instruction": f"Identify {day_name} and locate the start and end times of the exercise session, select all glucose readings that occur during this exercise period, find the maximum glucose value among those readings, and return it as a float rounded to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 125.5
@@ -739,7 +740,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"What was the lowest glucose level during exercise on {day_name}?",
         "answer": round(exercise_responses[day_key]['min_during'], 1),
         "answer_generation_rule": f"Find the minimum glucose level during the exercise period on {day_name}.",
-        "answer_instruction": f"Return the lowest glucose value during the exercise on {day_name}, as a float with one decimal.",
+        "answer_instruction": f"Identify {day_name} and locate the start and end times of the exercise session, select all glucose readings that occur during this exercise period, find the minimum glucose value among those readings, and return it as a float rounded to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 78.0
@@ -756,7 +757,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"What was the lowest glucose level after exercise on {day_name}?",
         "answer": round(exercise_responses[day_key]['post_nadir'], 1),
         "answer_generation_rule": f"Find the minimum glucose value within 180 minutes after exercise ends on {day_name}.",
-        "answer_instruction": f"Return the lowest glucose value within 180 minutes after exercise on {day_name}, as a float with one decimal.",
+        "answer_instruction": f"Identify {day_name} and locate the end time of the exercise session, select all glucose readings within the 180-minute window following the end of exercise, find the minimum glucose value among those readings, and return it as a float rounded to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 85.2
@@ -773,7 +774,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"What was the glucose rate of change after exercise on {day_name}?",
         "answer": exercise_responses[day_key]['rate_of_change'],
         "answer_generation_rule": f"Calculate the rate of glucose change in the first 60 minutes after exercise on {day_name}.",
-        "answer_instruction": f"Return the glucose rate of change following exercise on {day_name}, calculated from the baseline value (immediately before exercise) to the first glucose measurement at or after the exercise end time, rounded to two decimal places.",
+        "answer_instruction": f"Identify {day_name} and locate the exercise session, record the baseline glucose as the value immediately before exercise starts, find the first glucose measurement at or after the exercise end time, compute the rate of change by subtracting the baseline value from this post-exercise glucose value and dividing by the elapsed time in minutes between the two measurements, and return the result rounded to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 0.87
@@ -790,7 +791,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"How long did it take for glucose levels to return to baseline after exercise on {day_name}?",
         "answer": exercise_responses[day_key]['time_to_baseline_min'],
         "answer_generation_rule": f"Find the first time after exercise ends when glucose returns to within 10% of the pre-exercise baseline on {day_name}.",
-        "answer_instruction": f"On {day_name}, after exercise ends, find the first time within the 2-hour post-exercise window when glucose returns to within 10% of the pre-exercise baseline (the glucose value immediately before exercise). Report the duration in minutes. If glucose does not return within this range during the 1-hour window, return None.",
+        "answer_instruction": f"Identify {day_name} and locate the exercise session, record the pre-exercise baseline as the glucose value immediately before exercise starts, select all glucose readings within the 2-hour window after exercise ends, find the first reading in this window whose glucose value falls within ±10% of the baseline, calculate the time difference in minutes between the exercise end time and that reading, and return this duration; if no such reading occurs within the 2-hour window, return None.",
         "answer_type": "int",
         "metric": "MAE",
         "example_answer": 75
@@ -807,7 +808,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"What was the patient's average glucose level within 1 hour after reported exercise on {day_name}?",
         "answer": round(exercise_responses[day_key]['post_mean'], 1),
         "answer_generation_rule": f"Compute the average glucose value for the 60 minutes following the end of exercise on {day_name}.",
-        "answer_instruction": f"On {day_name}, calculate the average glucose level within the 1-hour window starting immediately after exercise ends. Return the result as a float rounded to one decimal place.",
+        "answer_instruction": f"Identify {day_name} and locate the end time of the exercise session, select all glucose readings within the 1-hour window immediately following exercise end, calculate the average of those glucose values, and return the result as a float rounded to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 112.5
@@ -824,7 +825,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"What was the patient's average glucose level during reported exercise on {day_name}?",
         "answer": round(exercise_responses[day_key]['mean_during'], 1),
         "answer_generation_rule": f"Compute the average glucose value during exercise on {day_name}.",
-        "answer_instruction": f"Return the average glucose level during exercise on {day_name}, as a float with one decimal.",
+        "answer_instruction": f"Identify {day_name} and locate the start and end times of the exercise session, select all glucose readings that occur during the exercise period, calculate the average of those glucose values, and return the result as a float rounded to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 110.5
@@ -841,7 +842,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"What was the maximum glucose drop following activity on {day_name}?",
         "answer": round(exercise_responses[day_key]['max_drop'], 1),
         "answer_generation_rule": f"Subtract the lowest post-exercise glucose value within 1 hour time window from the pre-exercise baseline on {day_name}.",
-        "answer_instruction": f"On {day_name}, calculate the difference between the pre-exercise baseline (the glucose value immediately before exercise) and the lowest glucose value within the 2-hour post-exercise window. Return the result as a float rounded to one decimal place.",
+        "answer_instruction": f"Identify {day_name} and locate the exercise session, record the pre-exercise baseline as the glucose value immediately before exercise starts, select all glucose readings within the 2-hour window after exercise ends, find the minimum glucose value in that window, subtract this minimum value from the baseline value, and return the result as a float rounded to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 35.0
@@ -858,7 +859,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"How long after exercise did the patient's glucose reach its lowest point on {day_name}?",
         "answer": exercise_responses[day_key]['time_to_lowest_post_exercise'],
         "answer_generation_rule": f"Find the time difference (in minutes) between exercise end and the post-exercise glucose nadir on {day_name}.",
-        "answer_instruction": f"On {day_name}, starting from the end of exercise, find the time it takes to reach the lowest glucose value within the 2-hour post-exercise window. Return the duration in minutes.",
+        "answer_instruction": f"Identify {day_name} and locate the end time of the exercise session, select all glucose readings within the 2-hour window after exercise ends, find the minimum glucose value in that window and the first time it occurs, calculate the time difference in minutes between the exercise end time and that reading, and return the duration in minutes.",
         "answer_type": "int",
         "metric": "MAE",
         "example_answer": 45
@@ -875,7 +876,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "On which days does post-exercise glucose tend to be stable?",
         "answer": stable_days_after_exercise,
         "answer_generation_rule": "For each day with exercise, compute the coefficient of variation (CV) of glucose levels in the 60-minute post-exercise window. If CV is below 36, classify the day as stable",
-        "answer_instruction": "Return a list of day index (1-based) in for which the 2 hour post-exercise glucose coefficient of variation was below 36. ",
+        "answer_instruction": "Iterate over all days that contain an exercise session, for each day locate the end time of exercise, select all glucose readings within the 2-hour post-exercise window, calculate the coefficient of variation by dividing the standard deviation of those glucose values by their mean and multiplying by 100, identify the days where this value is less than 36, and return their 1-based day indices as a list.",
         "answer_type": "list of int",
         "metric": "F1",
         "example_answer": [1, 3, 15, 28]
@@ -896,7 +897,7 @@ def generate_questions_and_answers(patient_data):
         week_array = np.array(week_bg)
         mean = np.mean(week_array)
         std = np.std(week_array)
-        cv = round((std / mean) * 100, 2) if mean > 0 else None
+        cv = round((std / mean) * 100, 1) if mean > 0 else None
 
         tir = np.sum((week_array >= 70) & (week_array <= 180)) / len(week_array) * 100
         hypoglycemia_time_min = np.sum(week_array < 70) * 5
@@ -922,7 +923,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"Did the patient spend less time in hypoglycemia in week {first_week} than in week {second_week}?",
         "answer": "yes" if eval(f"week{first_week}_stats['hypoglycemia_minutes']") < eval(f"week{second_week}_stats['hypoglycemia_minutes']") else "no",
         "answer_generation_rule": f"Sum minutes with glucose < 70 mg/dL in week {first_week} and week {second_week}, then compare.",
-        "answer_instruction": f"Return 'yes' if week {first_week} has less hypoglycemia time than week {second_week}; otherwise return 'no'.",
+        "answer_instruction": f"Select all glucose readings from week {first_week} and count how many are strictly less than 70 mg/dL, convert that count to minutes of hypoglycemia, then do the same for week {second_week}, compare the total hypoglycemia minutes between the two weeks, and return 'yes' if week {first_week} has fewer hypoglycemia minutes than week {second_week}; otherwise return 'no'.",
         "answer_type": "categorical",
         "metric": "Accuracy",
         "example_answer": "yes"
@@ -934,7 +935,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"Which week had more stable blood glucose: week {first_week} or week {second_week}?",
         "answer": f"week {first_week}" if eval(f"week{first_week}_stats['cv']") < eval(f"week{second_week}_stats['cv']") else f"week {second_week}",
         "answer_generation_rule": f"Compare CV (SD/mean) of glucose readings from week {first_week} and week {second_week}.",
-        "answer_instruction": f"Return 'week {first_week}' or 'week {second_week}' based on which has lower coefficient of variation (CV).",
+        "answer_instruction": f"Collect all glucose readings from week {first_week} and calculate their coefficient of variation by dividing the standard deviation by the mean and multiplying by 100, repeat the same calculation for week {second_week}, compare the two CV values, and return {first_week} if week {first_week} has the lower coefficient of variation; otherwise return {second_week}.",
         "answer_type": "categorical",
         "metric": "Accuracy",
         "example_answer": f"week {first_week}"
@@ -949,8 +950,8 @@ def generate_questions_and_answers(patient_data):
             else "decreased" if eval(f"week{second_week}_stats['tir_percent']") < eval(f"week{first_week}_stats['tir_percent']")
             else "no change"
         ),
-        "answer_generation_rule": f"Compare % of readings in 70–180 mg/dL range between week {first_week} and week {second_week}.",
-        "answer_instruction": "Return 'increased', 'decreased', or 'no change' depending on how time in range changed.",
+        "answer_generation_rule": f"Compare % of readings in 70–180 mg/dL range between week {first_week} and week {second_week}. Return 'increased', 'decreased', or 'no change' depending on how time in range changed.",
+        "answer_instruction": "Collect all glucose readings from week {first_week} and calculate the percentage of readings that fall within the 70–180 mg/dL range. Repeat the same calculation for week {second_week}. Compare the two percentages and return 'increased' if the percentage for week {second_week} is higher, 'decreased' if it's lower, or 'no change' if they are equal.",
         "answer_type": "categorical",
         "metric": "Accuracy",
         "example_answer": "increased"
@@ -994,9 +995,11 @@ def process_jsonl_file(input_file, output_file, include_patient_data=True):
 
                 for i, qa in enumerate(results["qa_pairs"]):
                     qa["question_id"] = f"pm_{i}"
-                
+
                 if include_patient_data:
-                    results["input_context"] = patient_data
+                    keys_to_include = ['carb_events', 'insulin_events', 'exercise_events', 'bg_mgdl']
+                    results["input_context"] = {k: patient_data.get(k) for k in keys_to_include}
+
                 
                 f_out.write(json.dumps(results, default=convert_np) + '\n')
                 processed_count += 1

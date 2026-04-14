@@ -74,7 +74,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": "What was the patient's total insulin dose?",
         "answer": float(round(total_insulin, 2)),
         "answer_generation_rule": "Sum all insulin amounts from insulin events.",
-        "answer_instruction": "Return the sum of all insulin (including basal and bolus insulin) doses units across the weeks, rounded to two decimal places.",
+        "answer_instruction": "Identify all insulin events across the full monitoring period, including both basal and bolus insulin events, sum all recorded insulin amounts, and return the total rounded to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 634.00
@@ -85,7 +85,7 @@ def generate_questions_and_answers(patient_data):
             "question_text": "When did the patient receive their largest insulin bolus?",
             "answer": int(largest_bolus_time_minutes), 
             "answer_generation_rule": "Find the insulin event with the maximum insulin amount.",
-            "answer_instruction": "Return the time of the largest bolus as minutes from start of monitoring period.",
+            "answer_instruction": "Identify all insulin bolus events across the full monitoring period, find the bolus event with the largest insulin amount, determine its timestamp, convert that timestamp to minutes elapsed since the start of the monitoring period, and return that value.",
             "answer_type": "int",
             "metric": "MAE",
             "example_answer": 465
@@ -100,7 +100,7 @@ def generate_questions_and_answers(patient_data):
         "question_text": f"What was the patient's total daily insulin dose on {day_name}?",
         "answer": float(daily_bg[day_key]['total_insulin']),
         "answer_generation_rule": f"Sum all basal and bolus insulin amounts recorded throughout {day_name}, rounded to 2 decimal places.",
-        "answer_instruction": f"Return the total insulin dose (including basal and bolus insulin) on {day_name}, rounded to two decimal places.",
+        "answer_instruction": f"Identify all basal and bolus insulin events occurring on {day_name}, sum their insulin amounts, and return the total insulin dose for that day rounded to one decimal place.",
         "answer_type": "float",
         "metric": "MAE",
         "example_answer": 34.0
@@ -115,7 +115,7 @@ def generate_questions_and_answers(patient_data):
             "question_text": f"When did the patient receive their largest insulin bolus on {day_name}?",
             "answer": int(daily_bg[day_key]['largest_bolus_time_minutes']),  
             "answer_generation_rule": f"Find the insulin bolus event with the highest insulin amount on {day_name} and return its timestamp.",
-            "answer_instruction": f"Return the time of the largest bolus on {day_name} as minutes from the start of the dataset (week1 day 1, 00:00).",
+            "answer_instruction": f"Identify all insulin bolus events that occur on {day_name}, find the bolus with the largest insulin amount, determine its timestamp, convert that timestamp to minutes elapsed since the start of the dataset at week 1 day 1 00:00, and return that value.",
             "answer_type": "int",
             "metric": "MAE",
             "example_answer": 465
@@ -152,8 +152,7 @@ def generate_questions_and_answers(patient_data):
                 "If the weekend average is greater than weekday average, return 'Yes'; otherwise, return 'No'."
             ),
             "answer_instruction": (
-                "Return 'Yes' if the average of insulin use on weekends is higher than the average insulin use on weekdays in the first week; "
-                "otherwise, return 'No'."
+                "For week 1, calculate the total daily insulin dose for each day by summing all basal and bolus insulin amounts, compute the average daily insulin dose across the weekend days (day 6 and day 7), compute the average daily insulin dose across the weekdays (day 1 to day 5), compare the two averages, and return 'Yes' if the weekend average is greater than the weekday average; otherwise return 'No'."
             ),
             "answer_type": "categorical",
             "metric": "Accuracy",
