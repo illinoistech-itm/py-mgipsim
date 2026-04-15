@@ -225,7 +225,7 @@ def compute_missing_signal_percentage_ad1(df):
     total_points = len(df)
     missing_points = df['IG (mmol/L)'].isna().sum()
     if total_points == 0:
-        return np.nan
+        return 0.0
     percentage = (missing_points / total_points) * 100
     return round(percentage, 2)
 
@@ -462,12 +462,12 @@ def extract_last_hypoglycemia_duration_ad22(df):
     """
     ad_22: How long was my last episode of hypoglycemia?
     answer_generation_rule: Length of the most recent period of data points with a hypoglycemia label: hypoglycemia_end - hypoglycemia_start
-    answer_instruction: Return the duration, in number of time points, of the most recent episode where blood glucose was continuously below 70 mg/dL. Duration = end - start + 1.
+    answer_instruction: Return the duration, in number of time points, of the most recent episode where blood glucose was continuously below 70 mg/dL. Duration = end - start + 1. If no related events been detected, return 0.
     answer_type: int
     metric: sMAPE
     """
     intervals = get_intervals_from_bool_mask(df["BG"] < 70)
-    return np.nan if not intervals else intervals[-1]["end"] - intervals[-1]["start"] + 1
+    return 0 if not intervals else intervals[-1]["end"] - intervals[-1]["start"] + 1
 
 def extract_hyperglycemia_starts_day25_ad23(df):
     """
@@ -505,7 +505,7 @@ def count_total_hypoglycemia_events_ad25(df):
 def count_last_week_hypoglycemia_events_ad26(df):
     """
     ad_26: How many times did I have hypo events in the last week?
-    answer_generation_rule: Extract data from the 24th to the 30th day. Count the number of hypoglycemia events (continuous period counts as 1 event)
+    answer_generation_rule: Extract data from the last 7 days. Count the number of hypoglycemia events (continuous period counts as 1 event)
     answer_instruction: Extract data from the last 7 days, return the number of distinct episodes where blood glucose readings were continuously below 70 mg/dL. Each continuous stretch counts as one event.
     answer_type: int
     metric: sMAPE
@@ -549,8 +549,8 @@ def compute_avg_recovery_time_from_hyper_ad29(df):
     """
     ad_29: How long did it generally take to reach target range after a prolonged hyperglycemia episode? 
     answer_generation_rule: Average value of the time BG returns to TIR minus the time the hyperglycemia event start
-    answer_instruction: Examine each prolonged hyperglycemia episode (lasting at least 12 consecutive data points above 180 mg/dL). For each episode, calculate the duration from the start of hyperglycemia until glucose first returns to the target range (≤180 mg/dL). Return the average of these durations, reported in minutes, as the typical recovery time.
-    answer_type: int
+    answer_instruction: Examine each prolonged hyperglycemia episode (lasting at least 12 consecutive data points above 180 mg/dL). For each episode, calculate the duration from the start of hyperglycemia until glucose first returns to the target range (≤180 mg/dL). Return the average of these durations, reported in minutes, as the typical recovery time. If no related events been detected, return NaN.
+    answer_type: int or NaN
     metric: sMAPE
     """
     intervals = [i for i in get_intervals_from_bool_mask(df["BG"] > 180) if i["end"] - i["start"] >= 12*5]
@@ -568,10 +568,10 @@ def compute_avg_recovery_time_from_hyper_ad29(df):
 
 def compute_last_hypo_recovery_time_ad30(df):
     """
-    ad_30: When did I recover from the last hypoglycemic event?
+    ad_30: How long did I recover from the last hypoglycemic event?
     answer_generation_rule: Find the last hypoglycemia interval (BG < 70) and compute how long it took to recover.
     answer_instruction: Return the number of time points between the start of the most recent hypoglycemia episode (BG < 70)
-                        and the first reading ≥ 70 mg/dL afterward.
+                        and the first reading ≥ 70 mg/dL afterward. If no related events been detected, return 0.
     answer_type: int
     metric: sMAPE
     """
@@ -581,29 +581,29 @@ def compute_last_hypo_recovery_time_ad30(df):
     start = intervals[-1]["start"]
     end = intervals[-1]["end"]
     recovery = df.iloc[end + 1:].index[df["BG"].iloc[end + 1:] >= 70].tolist()
-    return recovery[0] - start if recovery else np.nan
+    return recovery[0] - start if recovery else 0
 
 def find_day_with_most_out_of_range_ad31(df):
     """
     ad_31: What day was my glucose control the most out of range?
     answer_generation_rule: Count the number of hypo and hyper labels each day. The day has the max value
-    answer_instruction: Return the 1-indexed day number that had the highest total number of blood glucose readings outside the 70–180 mg/dL range.
+    answer_instruction: Return the 1-indexed day number that had the highest total number of blood glucose readings outside the 70–180 mg/dL range. If no related events been detected, return 0.
     answer_type: int
     metric: Accuracy
     """
     counts = df[(df["BG"] < 70) | (df["BG"] > 180)]['day'].value_counts()
-    return np.nan if counts.empty else int(counts.idxmax()) + 1
+    return 0 if counts.empty else int(counts.idxmax()) + 1
 
 def compute_longest_hyperglycemia_duration_ad32(df):
     """
     ad_32: What was my longest time spent (in minutes) in hyperglycemia?
     answer_generation_rule: Compute the duration of all hyperglycemia episodes and return the maximum.
-    answer_instruction: Examine all periods where glucose readings remain continuously above 180 mg/dL. For each period, calculate its duration in minutes from the first to the last timestamp. Return the longest of these durations as the maximum time spent in a single hyperglycemia episode.
+    answer_instruction: Examine all periods where glucose readings remain continuously above 180 mg/dL. For each period, calculate its duration in minutes from the first to the last timestamp. Return the longest of these durations as the maximum time spent in a single hyperglycemia episode. If no related events been detected, return 0.
     answer_type: int
     metric: sMAPE
     """
     intervals = get_intervals_from_bool_mask(df["BG"] > 180)
-    return max([(i["end"] - i["start"]) + 1 for i in intervals], default=0)
+    return 0 if len(intervals)==0 else max([(i["end"] - i["start"]) + 1 for i in intervals], default=0)
 
 def extract_negative_spikes_after_lunch_before_day20_ad33(df):
     """
@@ -691,7 +691,7 @@ def detect_rollercoaster_pattern_ad37(df):
 def detect_consistent_2am_spike_pattern_ad38(df):
     """
     ad_38: The CGM shows a glucose spike at 2 am for the past three nights. Is this consistent with my normal pattern?
-    answer_generation_rule: Check whether 2 am spikes also appeared on other nights (beyond days 27–29).
+    answer_generation_rule: Check whether 2 am spikes also appeared on other nights.
     answer_instruction: Return a list of days that blood glucose exceeded 180 mg/dL around 2:00 am.
     answer_type: list of int
     metric: Accuracy

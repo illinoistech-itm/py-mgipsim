@@ -40,11 +40,11 @@ def generate_faults_parser(add_help=False):
         default=['max_basal', 'min_basal', 'positive_basal', 'negative_basal', 'unknown_stop',
                  'unknown_under', 'missing_signal', 'positive_spike', 'negative_spike', 'negative_bias',
                  'positive_bias', 'min_reading', 'max_reading', 'repeated_reading', 'false_meal',
-                 'false_bolus', 'repeated episode'],
+                 'false_bolus', 'repeated_episode'],
         choices=['max_basal', 'min_basal', 'positive_basal', 'negative_basal', 'unknown_stop',
                  'unknown_under', 'missing_signal', 'positive_spike', 'negative_spike', 'negative_bias',
                  'positive_bias', 'min_reading', 'max_reading', 'repeated_reading', 'false_meal',
-                 'false_bolus', 'repeated episode'],
+                 'false_bolus', 'repeated_episode'],
         help=color_help_text('Select types of faulty injection.')
     )
 

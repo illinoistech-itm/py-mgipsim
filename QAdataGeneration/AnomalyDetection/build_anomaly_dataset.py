@@ -115,6 +115,8 @@ def generate_example_answer(answer_type: str) -> Any:
         return random.randint(0, 20)
     if "yes" in t or "no" in t:
         return random.choice(["yes", "no"])
+    if 'nan' in t:
+        return 'NaN'
     return None
 
 

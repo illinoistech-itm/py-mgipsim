@@ -6,14 +6,14 @@ faults_label_dict = {
     'max_basal': 1, 'min_basal': 2, 'positive_basal': 3, 'negative_basal': 4, 'unknown_stop': 5,
     'unknown_under': 6, 'missing_signal': 7, 'positive_spike': 8, 'negative_spike': 9, 'negative_bias': 10,
     'positive_bias': 11, 'min_reading': 12, 'max_reading': 13, 'repeated_reading': 14, 'false_meal': 15,
-    'false_bolus': 16, 'repeated episode': 17
+    'false_bolus': 16, 'repeated_episode': 17
 }
 
 faults_id_dict = {
     1: 'max_basal', 2: 'min_basal', 3: 'positive_basal', 4: 'negative_basal', 5: 'unknown_stop',
     6: 'unknown_under', 7: 'missing_signal', 8: 'positive_spike', 9: 'negative_spike', 10: 'negative_bias',
     11: 'positive_bias', 12: 'min_reading', 13: 'max_reading', 14: 'repeated_reading', 15: 'false_meal',
-    16: 'false_bolus', 17: 'repeated episode'
+    16: 'false_bolus', 17: 'repeated_episode'
 }
 
 
@@ -128,7 +128,8 @@ def generate_random_faults(simulation_days, intensity=0.1, random_state=100, fau
                     injected = True
             elif fault_id == repeated_fault:
                 duration = random.randint(120, 240)  # 2–4 hours
-                start = random.randint(0, simulation_len - duration)
+                # start from 12 hours later
+                start = random.randint(12*60, simulation_len - duration)
                 if is_valid_range(start, duration):
                     mark_range(start, duration, fault_id)
                     total_fault_minutes -= duration
@@ -155,7 +156,11 @@ def generate_random_faults(simulation_days, intensity=0.1, random_state=100, fau
         if duration > total_fault_minutes:
             break
 
-        start = random.randint(0, simulation_len - duration)
+        if fault_id == repeated_fault:
+            # start from 12 hours later
+            start = random.randint(12 * 60, simulation_len - duration)
+        else:
+            start = random.randint(0, simulation_len - duration)
         if is_valid_range(start, duration):
             mark_range(start, duration, fault_id)
             total_fault_minutes -= duration

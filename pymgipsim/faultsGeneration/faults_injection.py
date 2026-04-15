@@ -184,8 +184,8 @@ class CGMFault(Fault):
         #     non_zero_indices = np.where(carb_past[i] != 0)[0]
         #     if non_zero_indices.size > 0:
         #         episodes[i, n_cols-1:n_cols + copy_len-1] = bg[i, non_zero_indices[-1]:non_zero_indices[-1]+copy_len]
-        for i in bg.shape[0]:
-            bg[i] = bg_past[i, bg_past.shape[1] - bg_dist[i]]
+        for i in range(bg.shape[0]):
+            bg[i] = bg_past[i, int(bg_past.shape[1] - bg_dist[i])]
 
         return bg
 
