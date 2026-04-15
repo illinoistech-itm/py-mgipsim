@@ -1,4 +1,5 @@
 import subprocess
+import pandas as pd
 from pymgipsim.Utilities.paths import results_path
 from pymgipsim.Utilities import simulation_folder
 
@@ -11,7 +12,7 @@ from pymgipsim.generate_subjects import generate_virtual_subjects_main
 from pymgipsim.generate_plots import generate_plots_main
 from pymgipsim.generate_results import generate_results_main
 
-
+from pymgipsim.faultsGeneration import generate_faults
 
 if __name__ == '__main__':
     """ Parse Arguments  """
@@ -27,69 +28,77 @@ if __name__ == '__main__':
     settings_file = simulation_folder.load_settings_file(args, results_folder_path)
     
     # Programatically define scenario
-    args.controller_name = "OpenLoop" # Select controller folder in pymgipsim/Controller/...
+    args.number_of_days = 3
+
+    args.controller_name = "HCL0" # Select controller folder in pymgipsim/Controller/...
     args.model_name = "T1DM.ExtHovorka" # Select Hovorka model
-    #args.patient_names = ["Patient_1", "Patient_3"] # Select Patient in pymgipsim/VirtualPatient/Models/T1DM/ExtHovorka/Patients
+    # Select Patient in pymgipsim/VirtualPatient/Models/T1DM/ExtHovorka/Patients
+    # args.patient_names = ["Patient_3", "Patient_4"]
+
+    # physical activity
+    args.running_speed      = [5.0]
+    args.running_start_time = [0.0]
+    args.running_duration   = [0.0]
+    args.running_incline    = [0.5]
+
+    args.cycling_start_time = [1120.0]
+    args.cycling_duration = [30.0]
+    args.cycling_power = [90.0]
+
     args.plot_patient = 0 # Plots patient glucose, intakes, heartrate
+
+    args.breakfast_carb_range = [30, 60]
+    args.am_snack_carb_range = [10, 20]
+    args.lunch_carb_range = [70, 90]
+    args.pm_snack_carb_range = [10, 20]
+    args.dinner_carb_range = [70, 90]
+
+    settings_file.input_generation.breakfast_time_range = [420, 480]
+    settings_file.input_generation.am_snack_time_range = [660, 680]
+    settings_file.input_generation.lunch_time_range = [720, 750]
+    settings_file.input_generation.dinner_time_range = [1050, 1080]
+    settings_file.input_generation.pm_snack_time_range = [1200, 1260]
+
+    # Optional scenario templates:
+    # Late Heavy Eater
+    # args.am_snack_time_range = [660, 720]
+    # args.lunch_time_range = [780, 900]
+    # args.pm_snack_time_range = [960, 1020]
+    # args.dinner_time_range = [1140, 1260]
+    # args.breakfast_carb_range = 0.0
+    # args.am_snack_carb_range = [15, 25]
+    # args.lunch_carb_range = [100, 140]
+    # args.pm_snack_carb_range = [15, 25]
+    # args.dinner_carb_range = [100, 140]
+
+    # Morning Runner
+    # args.running_start_time = [360, 420]   
+    # args.breakfast_time_range = [480, 540] 
+    # args.running_duration = [30, 60]
+    # args.running_incline = [0.0, 6.0]
+    # args.running_speed = [1.7, 7.0]
+
+    # Lighter Eater with Cycling Hobby
+    # args.breakfast_carb_range = [50, 90]
+    # args.lunch_carb_range = [50, 90]
+    # args.dinner_carb_range = [50, 90]
+    # args.running_speed = 0.0
+    # args.cycling_start_time = [960, 1020]
+    # args.cycling_duration = [20, 60]
+    # args.cycling_power = [75, 200]
+    
+    args.random_seed = 100
+
+    args.to_excel = True
+
+    args.number_of_days = 3
     args.sampling_time = 5
 
-    ''' 
-    ###########Default Setting###########
-    args.breakfast_carb_range = [80, 120]
-    args.am_snack_carb_range = [10, 20]
-    args.lunch_carb_range = [80, 120]
-    args.pm_snack_carb_range = [10, 20]
-    args.dinner_carb_range = [80, 120]
-
-    args.breakfast_time_range = [420, 540]
-    args.lunch_time_range = [12, 14]
-    args.dinner_time_range = [18, 20]
-    args.am_snack_time_range = [10, 11]
-    args.pm_snack_time_range = [15, 16]
-    args.running_speed = 0.0
-    args.cycling_power = 0.0
-
-    ##########Late Heavy Eater##########
-    args.am_snack_time_range = [11, 12]
-    args.lunch_time_range = [13, 15]
-    args.pm_snack_time_range = [16, 17]
-    args.dinner_time_range = [19, 21]
-    args.breakfast_carb_range = 0.0
-    args.am_snack_carb_range = [15, 25]
-    args.lunch_carb_range = [100, 140]
-    args.pm_snack_carb_range = [15, 25]
-    args.dinner_carb_range = [100, 140]
-    args.running_speed = 0.0
-    args.cycling_power = 0.0
-
-    ############Morning Runner############
-    args.running_start_time = [360, 420] # 6-7am
-    args.breakfast_time_range = [480, 540] # 8-9am
-    args.running_duration = [30, 60]
-    args.running_incline = [0.0, 6.0]
-    args.running_speed = [1.7, 7.0] 
-    '''
- 
-    #####Lighter Eater with Cycling Hobby#####
-    args.breakfast_carb_range = [50, 90] 
-    args.lunch_carb_range = [50, 90]
-    args.dinner_carb_range = [50, 90]
-    args.running_speed = 0.0
-    args.cycling_start_time = [960, 1020] # 16-17. snack_pm(15-16) dinner(18-20)
-    args.cycling_duration = [20, 60]
-    args.cycling_power = [75, 200] 
-    
-    '''
-    ######Erratic Schedule – Skips Lunch######
-    args.lunch_carb_range = 0.0
-    args.running_speed = 0.0
-    args.cycling_power = 0.0
-    ''' 
-
-    args.random_seed = 100 
-    args.to_excel = True # Store BG values
-  
     activity_args_to_scenario(settings_file, args)
+
+    # faults injection args
+    faults_spec = 'pymgipsim/faultsGeneration/faults_specification.csv'
+    simulation_start_time = pd.Timestamp('2023-01-01 00:00:00')
 
     # Or random_scenario = None
     # All target: meal_carb, meal_start_time, snack_carb, snack_start_time
@@ -113,11 +122,12 @@ if __name__ == '__main__':
 
         settings_file = generate_virtual_subjects_main(scenario_instance=settings_file, args=args, results_folder_path=results_folder_path)
 
-        settings_file = generate_inputs_main(scenario_instance = settings_file, args = args, results_folder_path=results_folder_path, random_scenario=random_scenario)
+        settings_file = generate_inputs_main(scenario_instance = settings_file, args = args, results_folder_path=results_folder_path)  # , random_scenario=random_scenario
 
+        # faults_input = generate_faults.generate_faults_from_file(faults_file=faults_spec, simulation_days=args.number_of_days, simulation_start_time=simulation_start_time)  # , sampling_time=args.sampling_time
 
-    model,_ = generate_results_main(scenario_instance = settings_file, args = vars(args), results_folder_path = results_folder_path)
+        # faults_input = generate_faults.generate_random_faults(simulation_days=args.number_of_days, intensity=0.2, random_state=args.random_seed)
 
-    figures = generate_plots_main(results_folder_path, args)
+    model = generate_results_main(scenario_instance = settings_file, args = vars(args), results_folder_path = results_folder_path)  # , faults_array=faults_input
 
-    # python3 manual_script.py -d 30
+    figures = generate_plots_main(results_folder_path, args) # , faults_input

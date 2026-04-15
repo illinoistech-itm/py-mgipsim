@@ -27,3 +27,22 @@ def generate_bolus_insulin(scenario_instance: scenario, args):
         return Events(start_time= meal_times,
                     duration=np.ones_like(meal_durations),
                     magnitude=np.zeros_like(meal_magnitudes)).as_dict()
+
+def generate_iob(scenario_instance: scenario, args):
+    """Generate Insulin On Board (IOB) signal initialized to zeros.
+
+    IOB will be populated by the controller during simulation.
+
+    Args:
+        scenario_instance: The scenario instance
+        args: Command line arguments
+
+    Returns:
+        Events object with IOB initialized to zeros
+    """
+    # Initialize with a single zero event at start time for all patients
+    num_patients = scenario_instance.patient.number_of_subjects
+    start_time = np.ones((num_patients, 1)) * scenario_instance.settings.start_time
+    magnitude = np.zeros((num_patients, 1))
+
+    return Events(start_time=start_time, magnitude=magnitude).as_dict()
