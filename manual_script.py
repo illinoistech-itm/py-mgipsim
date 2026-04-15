@@ -26,7 +26,7 @@ if __name__ == '__main__':
 
     """ Load Scenario """
     settings_file = simulation_folder.load_settings_file(args, results_folder_path)
-
+    
     # Programatically define scenario
     args.number_of_days = 3
 
@@ -59,6 +59,34 @@ if __name__ == '__main__':
     settings_file.input_generation.dinner_time_range = [1050, 1080]
     settings_file.input_generation.pm_snack_time_range = [1200, 1260]
 
+    # Optional scenario templates:
+    # Late Heavy Eater
+    # args.am_snack_time_range = [660, 720]
+    # args.lunch_time_range = [780, 900]
+    # args.pm_snack_time_range = [960, 1020]
+    # args.dinner_time_range = [1140, 1260]
+    # args.breakfast_carb_range = 0.0
+    # args.am_snack_carb_range = [15, 25]
+    # args.lunch_carb_range = [100, 140]
+    # args.pm_snack_carb_range = [15, 25]
+    # args.dinner_carb_range = [100, 140]
+
+    # Morning Runner
+    # args.running_start_time = [360, 420]   
+    # args.breakfast_time_range = [480, 540] 
+    # args.running_duration = [30, 60]
+    # args.running_incline = [0.0, 6.0]
+    # args.running_speed = [1.7, 7.0]
+
+    # Lighter Eater with Cycling Hobby
+    # args.breakfast_carb_range = [50, 90]
+    # args.lunch_carb_range = [50, 90]
+    # args.dinner_carb_range = [50, 90]
+    # args.running_speed = 0.0
+    # args.cycling_start_time = [960, 1020]
+    # args.cycling_duration = [20, 60]
+    # args.cycling_power = [75, 200]
+    
     args.random_seed = 100
 
     args.to_excel = True
