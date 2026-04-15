@@ -143,6 +143,7 @@ class inputs():
                 sgl2i (Events) : SGL2i drug intakes [mg].
                 basal_insulin (Events) : Basal insulin rates [U/hr].
                 bolus_insulin (Events) : Bolus insulin intakes [U].
+                iob (Events) : Insulin On Board tracking [U] - populated by controller during simulation.
                 heart_rate (Events) : Heart rate values [BPM].
                 taud (Events) : Meal carb absorption times [min].
 
@@ -154,6 +155,7 @@ class inputs():
     basal_insulin: Events = None
     bolus_insulin: Events = None
     bodyweighteffect: Events = None
+    iob: Events = None
 
     heart_rate: Events = None
     taud: Events = None

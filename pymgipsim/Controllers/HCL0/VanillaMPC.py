@@ -70,6 +70,10 @@ class VanillaMPC:
         self.bounds.u_min[2, :] = self.bounds.u_max[2, :] = 1 - self.pw_data_object.energy_expenditure_pw[-2]
         self.bounds.u_min[3, :] = self.bounds.u_max[3, :] = 1
 
+        # Hypoglycemia safety: restrict insulin if glucose is low or dropping
+        # if current_cgm < 100 or self.pw_data_object.get_dcgm_dt() < 0:
+        #     self.bounds.u_max[0, :] = self.demographic_info.get_basal_rate_mU_min()
+
         qop = self.mpc_set()
         x_solution, exit_flag = self.mpc_solve(qop)
 
@@ -102,7 +106,15 @@ class VanillaMPC:
             bolus_out = 0
         else:
             basal_out = self.demographic_info.get_basal_rate()  # U/hr
+            # safety bound: set cap bolus
             bolus_out = (opt_insulin - self.demographic_info.get_basal_rate_mU_min()) / 1000 * T
+            # extra = opt_insulin - self.demographic_info.get_basal_rate_mU_min()
+            # bolus_out = min(extra / 1000 * self.T, self.max_bolus)  # cap bolus
+
+        # safety guardrail
+        if current_cgm < 100 or self.pw_data_object.get_dcgm_dt()/self.T < -3:  # dcgm_dt in mg/dL per minute
+            basal_out = 0.0
+            bolus_out = 0.0
 
         return basal_out, bolus_out
 
@@ -402,11 +414,11 @@ class VanillaMPC:
         self.update_state(converted_states)
         # Select hardcoded 1st patient (MPC currently works for single patient)
         G = UnitConversion.glucose.concentration_mmolL_to_mgdL(measurements[patient_idx])
-        uFastCarbs, uSlowCarbs, uHR, uInsulin, energy_expenditure = inputs[patient_idx]
-
+        uFastCarbs, uSlowCarbs, uHR, uInsulin, energy_expenditure, _ = inputs[patient_idx]
 
         sum_meals = np.sum(uFastCarbs[sample-self.T+1:sample:sample+1]+uSlowCarbs[sample-self.T+1:sample:sample+1])/self.T
         energy_expenditure_mean = 1+np.sum(energy_expenditure[sample-self.T+1:sample:sample+1])/self.T
+
 
         # meal is in gram
         # exercise is in MET
@@ -416,9 +428,14 @@ class VanillaMPC:
 
         self.update_linear_model()
         basal, bolus = self.mpc_execute()
+
+        # inject insulin related faults
+
         self.pw_data_object.push_basal(basal)
         self.pw_data_object.push_bolus(bolus)
         # insulin = MPC_Controller_01.get_insulin_input_mU_min(basal, bolus)
         insulin_rate = UnitConversion.insulin.Uhr_to_mUmin(basal)+UnitConversion.insulin.U_to_mU(bolus)/self.T
+        # basal_rate = UnitConversion.insulin.Uhr_to_mUmin(basal)
+        # bolus_rate = UnitConversion.insulin.U_to_mU(bolus)/self.T
         inputs[patient_idx,3,sample:sample+self.T] = insulin_rate
         return

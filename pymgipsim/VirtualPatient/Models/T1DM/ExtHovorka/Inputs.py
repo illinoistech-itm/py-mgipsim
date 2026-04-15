@@ -12,12 +12,13 @@ class Inputs(BaseInputs):
                 uSlowCarbs (Signal) : Slow acting carbs [mmol/min] typically with an absorption time constant of 40 minutes.
                 uHR (Signal) : Heart rate signal [BPM], used in the physical activity submodel.
                 uInsulin (Signal) : Combined basal and bolus insulin input [mU/min]
-                unknown (Signal) : ???
+                energy_expenditure (Signal) : Energy expenditure signal (currently unused in model)
+                uIOB (Signal) : Insulin On Board tracking [U] - populated by OpenAPS controller
 
             Hint:
                 .as_array() function returns 3D numpy array where:
                 1st dim: Subject in the virtual cohort
-                2nd dim: Input variable
+                2nd dim: Input variable (6 inputs total)
                 3rd dim: Timestep in the simulation horizon
 
     """
@@ -26,16 +27,17 @@ class Inputs(BaseInputs):
     uHR: Signal = field(default_factory=lambda: Signal())
     uInsulin: Signal = field(default_factory=lambda: Signal())
     energy_expenditure: Signal = field(default_factory=lambda: Signal())
+    uIOB: Signal = field(default_factory=lambda: Signal())
 
 
 
     @property
     def as_array(self):
-        self._as_array = np.stack((self.uFastCarbs.sampled_signal, self.uSlowCarbs.sampled_signal, self.uHR.sampled_signal, self.uInsulin.sampled_signal, self.energy_expenditure.sampled_signal),axis=1)
+        self._as_array = np.stack((self.uFastCarbs.sampled_signal, self.uSlowCarbs.sampled_signal, self.uHR.sampled_signal, self.uInsulin.sampled_signal, self.energy_expenditure.sampled_signal, self.uIOB.sampled_signal),axis=1)
         return self._as_array
 
     @as_array.setter
     def as_array(self, array: np.ndarray):
         array_sw = np.swapaxes(array, 0, 1)
-        self.uFastCarbs.sampled_signal, self.uSlowCarbs.sampled_signal, self.uHR.sampled_signal, self.uInsulin.sampled_signal, self.energy_expenditure.sampled_signal = array_sw
+        self.uFastCarbs.sampled_signal, self.uSlowCarbs.sampled_signal, self.uHR.sampled_signal, self.uInsulin.sampled_signal, self.energy_expenditure.sampled_signal, self.uIOB.sampled_signal = array_sw
         self._as_array = array

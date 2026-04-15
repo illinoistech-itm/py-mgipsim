@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 
 import numpy as np
+import copy
 
 from ..ODESolvers.ode_solvers import euler_single_step, rk4_single_step
 from pymgipsim.Utilities.Scenario import scenario
@@ -8,7 +9,12 @@ from pymgipsim.VirtualPatient.Models.Model import BaseModel
 from pymgipsim import Controllers
 from pymgipsim.Utilities.units_conversions_constants import UnitConversion
 from pymgipsim.VirtualPatient.Models import T1DM
+from pymgipsim.Controllers.OpenAPS.controller import MealBolusMode
 from tqdm import tqdm
+
+from pymgipsim.faultsGeneration.faults_injection import FaultsInjection
+from pymgipsim.faultsGeneration.generate_faults import faults_id_dict
+from pymgipsim.faultsGeneration import faults_utils
 
 class SolverBase(ABC):
 
@@ -36,13 +42,26 @@ class SolverBase(ABC):
                 self.controller = Controllers.SAPT.controller.Controller(self.scenario_instance, converted_glucose(100.0), self.model.states.state_units)
                 match self.controller.model_name:
                     case T1DM.ExtHovorka.Model.name:
-                        self.model.inputs.uInsulin.sampled_signal[:,0] = self.controller.basal.sampled_signal[:,0]
+                        self.model.inputs.uInsulin.sampled_signal[:, 0] = (
+                            self.controller.basal.sampled_signal[:, 0]
+                        )
                     case T1DM.IVP.Model.name:
                         self.model.inputs.basal_insulin.sampled_signal[:, 0] = self.controller.basal.sampled_signal[:, 0]
                 self.model.preprocessing()
             case Controllers.HCL0.controller.Controller.name:
                 self.controller = Controllers.HCL0.controller.Controller(self.scenario_instance)
                 self.model.inputs.uInsulin.sampled_signal[:, 0] = UnitConversion.insulin.Uhr_to_mUmin(np.asarray([x.demographic_info.basal_rate for x in self.controller.controllers]))
+                self.model.preprocessing()
+            case Controllers.OpenAPS.controller.Controller.name:
+                self.controller = Controllers.OpenAPS.controller.Controller(
+                    self.scenario_instance,
+                    meal_bolus_mode=MealBolusMode.PLANNED,
+                )
+                self.model.inputs.uInsulin.sampled_signal[:, 0] = (
+                    UnitConversion.insulin.Uhr_to_mUmin(
+                        np.asarray(self.controller.demographic_info.basal)
+                    )
+                )
                 self.model.preprocessing()
             case _:  # Default case
                 raise Exception("Undefined controller, Add it to the ModelSolver class.")
@@ -65,10 +84,10 @@ class SingleScaleSolver(SolverBase):
 
     name = "SingleScaleSolver"
 
-    def do_simulation(self, no_progress_bar):
-
+    def do_simulation(self, no_progress_bar, faults_array=None):
 
         """ Initialize """
+        # Patient states. Not affected by the CGM readings manipulation but only by insulin delivery
         state_results = self.model.states.as_array
         inputs = self.model.inputs.as_array
         parameters = self.model.parameters.as_array
@@ -77,20 +96,123 @@ class SingleScaleSolver(SolverBase):
         self.set_controller(self.scenario_instance.controller.name)
 
         state_results[:, :, 0] = self.model.initial_conditions.as_array
-        for sample in tqdm(range(1, inputs.shape[2]), disable = no_progress_bar):
 
-            self.controller.run(measurements=state_results[:, self.model.output_state, sample - 1], inputs=inputs, states=state_results, sample=sample-1)
+        if faults_array is None:
+            for sample in tqdm(range(1, inputs.shape[2]), disable=no_progress_bar):
+                self.controller.run(measurements=state_results[:, self.model.output_state, sample - 1],
+                                    inputs=inputs, states=state_results, sample=sample - 1)
 
-            state_results[:, :, sample] = self.ode_solver(
-                f=self.model.model,
-                time=float(sample),
-                h=float(self.model.sampling_time),
-                initial=state_results[:, :, sample - 1].copy(),
-                parameters=parameters,
-                inputs=inputs[:, :, sample - 1]
-            )
+                state_results[:, :, sample] = self.ode_solver(
+                    f=self.model.model,
+                    time=float(sample),
+                    h=float(self.model.sampling_time),
+                    initial=state_results[:, :, sample - 1].copy(),
+                    parameters=parameters,
+                    inputs=inputs[:, :, sample - 1]
+                )
 
-        self.model.states.as_array = state_results
-        self.model.inputs.as_array = inputs
+            self.model.states.as_array = state_results
+            self.model.inputs.as_array = inputs
 
-        return state_results
+            return state_results, None
+
+        else:
+            """Initialize Fault Injection"""
+            # Silicon states. Computed for the controller and will be affected when launching false CGM readings attack.
+            silicon_state_results = copy.copy(self.model.states.as_array)
+            faults_engine = FaultsInjection()
+            faults_label = ['None'] * state_results.shape[-1]
+            first_repeat = True
+
+            # Get fault id type
+            fault_label_dict = {name: id for id, name in faults_id_dict.items()}
+            cgm_faults_ids = [fault_label_dict.get(name) for name in faults_engine.bg_faults]
+            insulin_faults_ids = [fault_label_dict.get(name) for name in faults_engine.insulin_faults]
+
+            # Sampling: downsample every `sampling_time` minutes using max value in window
+            sampled_length = len(faults_array) // self.model.sampling_time
+            faults_array = np.array([
+                np.max(faults_array[i * int(self.model.sampling_time):(i + 1) * int(self.model.sampling_time)]) for i in range(int(sampled_length))
+            ])
+            print('Fault Injection Initialized')
+
+            print(f"faults sample length: {sampled_length}")
+
+            current_input = inputs[:, :, 0]
+
+            for sample in tqdm(range(1, inputs.shape[2]), disable = no_progress_bar):
+                # inject cgm faults before controller.
+                if faults_array[sample - 1] in cgm_faults_ids:
+                    f_label = faults_id_dict[faults_array[sample-1]]
+
+                    true_last_bg = copy.copy(state_results[:, self.model.output_state, sample - 1])
+                    silicon_state_results[:, :, sample - 1] = self.ode_solver(
+                        f=self.model.model,
+                        time=float(sample - 1),
+                        h=float(self.model.sampling_time),
+                        initial=silicon_state_results[:, :, sample - 2].copy(),
+                        parameters=parameters,
+                        inputs=current_input  # inputs[:, :, sample - 1]
+                    )
+
+                    if f_label == 'repeated_episode':
+                        if first_repeat:
+                            meal_episode_start = faults_utils.get_first_meal_index(carb_past=inputs[:, 1, :sample])
+                            episode_dist = sample - 1 - meal_episode_start
+                            first_repeat = False
+                        false_last_bg = faults_engine.run_cgm(f_label, bg=true_last_bg, bg_dist=episode_dist, bg_past=state_results[:, self.model.output_state, :sample])
+                    elif f_label == 'repeated_reading':
+                        false_last_bg = faults_engine.run_cgm(fault_type=f_label, bg=true_last_bg, bg_past=silicon_state_results[:, self.model.output_state, sample - 2])
+                    else:
+                        false_last_bg = faults_engine.run_cgm(fault_type=f_label, bg=true_last_bg)
+
+                    faults_label[sample-1] = f_label
+                    silicon_state_results[:, self.model.output_state, sample-1] = false_last_bg.copy()
+
+                    # Keep real readings for the patient model and fake readings for the controller and display
+                    self.controller.run(measurements=false_last_bg, inputs=inputs,
+                                        states=silicon_state_results, sample=sample - 1)
+                else:
+                    silicon_state_results[:, :, sample - 1] = copy.copy(state_results[:, :, sample - 1])
+                    self.controller.run(measurements=state_results[:, self.model.output_state, sample - 1],
+                                        inputs=inputs, states=state_results, sample=sample-1)
+
+                # position 3 is the total insulin
+                current_input = copy.copy(inputs[:, :, sample - 1])
+
+                # inject controller faults before patient model.
+                if faults_array[sample-1] in insulin_faults_ids:
+                    f_label = faults_id_dict[faults_array[sample-1]]
+
+                    if f_label == 'false_meal':
+                        # input state: uFastCarbs, uSlowCarbs, uHR, uInsulin, energy_expenditure
+                        # uSlowCarbs
+                        false_carb = faults_engine.run_insulin(f_label, carb_past=inputs[:, 1, :sample+1])
+                        inputs[:, 1, sample] = false_carb.copy()
+                    else:
+                        f_basal = faults_engine.run_insulin(f_label, current_input[:, 3], sample)
+                        current_input[:, 3] = f_basal
+
+                    faults_label[sample - 1] = f_label
+                    # When unknown malfunction happen with pump, the displayed controller activity will not accord with really injected dosage
+                    if f_label not in ['unknown_stop', 'unknown_under', 'false_meal']:
+                        inputs[:, 3, sample - 1] = f_basal
+
+
+                state_results[:, :, sample] = self.ode_solver(
+                    f=self.model.model,
+                    time=float(sample),
+                    h=float(self.model.sampling_time),
+                    initial=state_results[:, :, sample - 1].copy(),
+                    parameters=parameters,
+                    inputs=current_input # inputs[:, :, sample - 1]
+                )
+
+            # Pass the CGM data received by the controller
+            # silicon_state_results[:, self.model.output_state, -1] = [0,0] due to not simulate in the last run
+            state_results[:, self.model.output_state, :-2] = silicon_state_results[:, self.model.output_state, :-2].copy()
+
+            self.model.states.as_array = state_results
+            self.model.inputs.as_array = inputs
+
+            return state_results, faults_label

@@ -52,6 +52,8 @@ class Model(BaseModel, UnitConversion):
         self.F01_effect: bool = True
         self.Physact_effect: bool = True
 
+        self.faults_label = None
+
     @staticmethod
     @njit("float64[:,:](float64[:,:],float64,float64[:,:],float64[:,:])", cache=True)
     def model(states, time, parameters, inputs):
@@ -79,9 +81,8 @@ class Model(BaseModel, UnitConversion):
         kb2_nonlin = kb2 * SIModelRatioHypo * SIModelRatioHyper
         kb3_nonlin = kb3 * SIModelRatioHypo * SIModelRatioHyper
 
-
         """ Define Inputs """
-        uFastCarbs, uSlowCarbs, uHR, uInsulin, _ = inputs.T
+        uFastCarbs, uSlowCarbs, uHR, uInsulin, _, _ = inputs.T
 
         """ Define Equations """
         ExIntensityReserve = uHR - HRrest
@@ -92,7 +93,6 @@ class Model(BaseModel, UnitConversion):
         ExIntensityReserve_High[ExIntensityReserve_High < 0] = 0
         ExIntensityReserve_High[ExIntensityReserve_High > 1] = 1
 
-        
         # Insulin System
         dS1dt = uInsulin - S1 / tmaxI
         dS2dt = (S1 - S2) / tmaxI
@@ -142,7 +142,7 @@ class Model(BaseModel, UnitConversion):
 
         return np.column_stack((dS1dt, dS2dt, dIdt, dx1dt, dx2dt, dx3dt, dQ1dt, dQ2dt, dIGdt, dD1Slowdt, dD2Slowdt,
                                 dD1Fastdt, dD2Fastdt, dEEfastdt, dEEhighintensitydt, dEElongeffectdt))
-    
+
     @staticmethod
     def rate_equations(states, time, parameters, inputs):
         pass
@@ -203,7 +203,6 @@ class Model(BaseModel, UnitConversion):
         x20 = kb2nonlin * I0 / self.parameters.ka2
         x30 = kb3nonlin * I0 / self.parameters.ka3
 
-
         Q20 = x10*Q10/(self.parameters.k12+x20)
 
         D1Slow0 = np.zeros_like(G0)
@@ -214,10 +213,6 @@ class Model(BaseModel, UnitConversion):
 
         self.initial_conditions.as_array = np.column_stack((S10,S20,I0,x10,x20,x30,Q10,Q20,G0,D1Slow0,D2Slow0,D1Fast0,D2Fast0,np.zeros_like(G0),np.zeros_like(G0),np.zeros_like(G0)))
         self.states.as_array = np.zeros((self.inputs.as_array.shape[0], self.initial_conditions.as_array.shape[1], self.inputs.as_array.shape[2]))
-
-
-
-
 
     @staticmethod
     def output_equilibrium(parameters, inputs):
@@ -262,7 +257,16 @@ class Model(BaseModel, UnitConversion):
         events = scenario_instance.inputs.energy_expenditure
         energy_expenditure = Signal(time=time, sampling_time=scenario_instance.settings.sampling_time,start_time=events.start_time, magnitude=events.magnitude)
 
-        model.inputs = Inputs(snack_carb, meal_carb, heart_rate, insulin, energy_expenditure)
+        # Initialize IOB signal from scenario inputs (will be populated by controller during simulation)
+        events = scenario_instance.inputs.iob
+        iob_signal = Signal(
+            time=time,
+            sampling_time=scenario_instance.settings.sampling_time,
+            start_time=events.start_time,
+            magnitude=events.magnitude,
+        )
+
+        model.inputs = Inputs(snack_carb, meal_carb, heart_rate, insulin, energy_expenditure, iob_signal)
         model.parameters = Parameters(np.asarray(scenario_instance.patient.model.parameters))
         model.time = Timestamp()
         model.time.as_unix = time
